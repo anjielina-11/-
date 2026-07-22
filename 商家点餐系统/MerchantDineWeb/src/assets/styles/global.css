@@ -1,0 +1,115 @@
+:root {
+  --food-primary: #e65d3e;
+  --food-primary-dark: #c94a2e;
+  --food-secondary: #f59e0b;
+  --food-bg: #faf7f2;
+  --food-card: #ffffff;
+  --food-green: #22c55e;
+  --food-red: #ef4444;
+  --food-text: #2d1b14;
+  --food-text-light: #8b6f65;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06);
+  --shadow-md: 0 4px 15px rgba(0,0,0,.08);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,.12);
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --transition: .25s cubic-bezier(.4,0,.2,1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  background: var(--food-bg);
+  color: var(--food-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ====== 通用食物卡片 ====== */
+.food-card {
+  background: var(--food-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+}
+.food-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ====== 食物图片容器 ====== */
+.food-img-wrap {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+}
+.food-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .4s ease;
+}
+.food-card:hover .food-img-wrap img {
+  transform: scale(1.08);
+}
+/* 图片加载失败占位 */
+.food-img-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  color: #d97706;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fbbf24 100%);
+}
+
+/* ====== 价格样式 ====== */
+.price-tag {
+  color: var(--food-primary);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.price-tag::before { content: '¥'; font-size: 0.7em; margin-right: -1px; }
+
+/* ====== 页面标题 ====== */
+.page-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--food-text);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.page-title::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 24px;
+  background: var(--food-primary);
+  border-radius: 2px;
+}
+
+/* ====== 按钮增强 ====== */
+.el-button--primary {
+  --el-button-bg-color: var(--food-primary);
+  --el-button-border-color: var(--food-primary);
+  --el-button-hover-bg-color: var(--food-primary-dark);
+  --el-button-hover-border-color: var(--food-primary-dark);
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+/* ====== 滚动条 ====== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #e5d5c8; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #d4b8a8; }
+
+/* ====== Element 覆盖 ====== */
+.el-tag { border-radius: 6px; font-weight: 600; }
+.el-dialog { border-radius: var(--radius-lg); }
+.el-card { border-radius: var(--radius-md); }

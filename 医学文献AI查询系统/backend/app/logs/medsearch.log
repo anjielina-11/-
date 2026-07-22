@@ -1,0 +1,450 @@
+2026-07-19 10:15:43 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 10:39:36 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 10:46:35 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 10:46:36 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 10:46:47 INFO [deepseek_client] DeepSeek request: prompt_len=4, attempt=1
+2026-07-19 10:47:56 ERROR [deepseek_client] DeepSeek HTTP error: 401, elapsed=68.43s
+2026-07-19 10:47:56 WARNING [health_bp] Health check DeepSeek failed: AI服务认证失败
+2026-07-19 10:47:56 INFO [pubmed_client] PubMed ESearch: query=cancer, page=1, page_size=1
+2026-07-19 10:47:56 ERROR [pubmed_client] PubMed ESearch error: 400 Client Error: Bad Request for url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=cancer&retmode=json&retstart=0&retmax=1&sort=relevance&api_key=your-pubmed-api-key
+2026-07-19 10:47:56 WARNING [health_bp] Health check PubMed failed: PubMed检索服务不可用，请稍后重试
+2026-07-19 10:48:19 INFO [deepseek_client] DeepSeek request: prompt_len=88, attempt=1
+2026-07-19 10:48:19 ERROR [deepseek_client] DeepSeek HTTP error: 401, elapsed=0.21s
+2026-07-19 10:48:19 ERROR [keyword_service] Generate keywords error: AI服务认证失败
+2026-07-19 10:48:19 ERROR [keyword_bp] Generate keywords API error: AI服务认证失败
+2026-07-19 10:49:37 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 10:49:38 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 10:49:59 INFO [deepseek_client] DeepSeek request: prompt_len=88, attempt=1
+2026-07-19 10:49:59 ERROR [deepseek_client] DeepSeek HTTP error: 401, elapsed=0.19s
+2026-07-19 10:49:59 ERROR [keyword_service] Generate keywords error: AI服务认证失败
+2026-07-19 10:49:59 ERROR [keyword_bp] Generate keywords API error: AI服务认证失败
+2026-07-19 10:51:36 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 10:51:46 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 10:52:08 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 10:52:09 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 10:52:22 INFO [deepseek_client] DeepSeek request: prompt_len=88, attempt=1
+2026-07-19 10:52:24 INFO [deepseek_client] DeepSeek response: len=14, elapsed=2.47s
+2026-07-19 10:52:24 INFO [keyword_service] Generated keywords: ['EGFR', '突变', '肺癌']
+2026-07-19 10:52:50 INFO [deepseek_client] DeepSeek request: prompt_len=91, attempt=1
+2026-07-19 10:52:56 INFO [deepseek_client] DeepSeek response: len=10, elapsed=5.72s
+2026-07-19 10:52:56 INFO [keyword_service] Translated keywords: ['EGFR', '??', '??']
+2026-07-19 10:52:56 INFO [pubmed_client] PubMed ESearch: query=EGFR AND ?? AND ??, page=1, page_size=9
+2026-07-19 10:52:56 ERROR [pubmed_client] PubMed ESearch connection error
+2026-07-19 10:52:56 ERROR [literature_bp] Search literatures API error: PubMed服务连接失败，请稍后重试
+2026-07-19 10:53:27 INFO [deepseek_client] DeepSeek request: prompt_len=91, attempt=1
+2026-07-19 10:53:30 INFO [deepseek_client] DeepSeek response: len=10, elapsed=2.87s
+2026-07-19 10:53:30 INFO [keyword_service] Translated keywords: ['EGFR', '??', '??']
+2026-07-19 10:54:00 INFO [deepseek_client] DeepSeek request: prompt_len=106, attempt=1
+2026-07-19 10:54:01 INFO [deepseek_client] DeepSeek response: len=25, elapsed=1.49s
+2026-07-19 10:54:01 INFO [keyword_service] Translated keywords: ['EGFR', 'mutation', 'lung cancer']
+2026-07-19 10:54:01 INFO [pubmed_client] PubMed ESearch: query=EGFR AND mutation AND lung cancer, page=1, page_size=9
+2026-07-19 10:54:02 INFO [pubmed_client] PubMed ESearch result: total=20941, ids=9
+2026-07-19 10:54:02 INFO [pubmed_client] PubMed EFetch: pmids=9
+2026-07-19 10:54:03 INFO [deepseek_client] DeepSeek request: prompt_len=115, attempt=1
+2026-07-19 10:54:04 INFO [deepseek_client] DeepSeek response: len=22, elapsed=1.17s
+2026-07-19 10:54:04 INFO [deepseek_client] DeepSeek request: prompt_len=1565, attempt=1
+2026-07-19 10:54:06 INFO [deepseek_client] DeepSeek response: len=97, elapsed=1.46s
+2026-07-19 10:54:06 INFO [deepseek_client] DeepSeek request: prompt_len=120, attempt=1
+2026-07-19 10:54:08 INFO [deepseek_client] DeepSeek response: len=26, elapsed=2.11s
+2026-07-19 10:54:08 INFO [deepseek_client] DeepSeek request: prompt_len=1487, attempt=1
+2026-07-19 10:54:10 INFO [deepseek_client] DeepSeek response: len=104, elapsed=1.89s
+2026-07-19 10:54:10 INFO [deepseek_client] DeepSeek request: prompt_len=120, attempt=1
+2026-07-19 10:54:11 INFO [deepseek_client] DeepSeek response: len=27, elapsed=1.29s
+2026-07-19 10:54:11 INFO [deepseek_client] DeepSeek request: prompt_len=1235, attempt=1
+2026-07-19 10:54:13 INFO [deepseek_client] DeepSeek response: len=130, elapsed=2.00s
+2026-07-19 10:54:13 INFO [deepseek_client] DeepSeek request: prompt_len=140, attempt=1
+2026-07-19 10:54:14 INFO [deepseek_client] DeepSeek response: len=28, elapsed=1.54s
+2026-07-19 10:54:14 INFO [deepseek_client] DeepSeek request: prompt_len=1031, attempt=1
+2026-07-19 10:54:16 INFO [deepseek_client] DeepSeek response: len=112, elapsed=1.92s
+2026-07-19 10:54:16 INFO [deepseek_client] DeepSeek request: prompt_len=112, attempt=1
+2026-07-19 10:54:18 INFO [deepseek_client] DeepSeek response: len=22, elapsed=1.17s
+2026-07-19 10:54:18 INFO [deepseek_client] DeepSeek request: prompt_len=1292, attempt=1
+2026-07-19 10:54:19 INFO [deepseek_client] DeepSeek response: len=91, elapsed=1.70s
+2026-07-19 10:54:19 INFO [deepseek_client] DeepSeek request: prompt_len=177, attempt=1
+2026-07-19 10:54:21 INFO [deepseek_client] DeepSeek response: len=41, elapsed=1.88s
+2026-07-19 10:54:21 INFO [deepseek_client] DeepSeek request: prompt_len=1306, attempt=1
+2026-07-19 10:54:23 INFO [deepseek_client] DeepSeek response: len=112, elapsed=1.91s
+2026-07-19 10:54:23 INFO [deepseek_client] DeepSeek request: prompt_len=87, attempt=1
+2026-07-19 10:54:24 INFO [deepseek_client] DeepSeek response: len=16, elapsed=1.28s
+2026-07-19 10:54:24 INFO [deepseek_client] DeepSeek request: prompt_len=349, attempt=1
+2026-07-19 10:54:26 INFO [deepseek_client] DeepSeek response: len=83, elapsed=1.53s
+2026-07-19 10:54:26 INFO [deepseek_client] DeepSeek request: prompt_len=84, attempt=1
+2026-07-19 10:54:27 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.46s
+2026-07-19 10:54:27 INFO [deepseek_client] DeepSeek request: prompt_len=118, attempt=1
+2026-07-19 10:54:29 INFO [deepseek_client] DeepSeek response: len=25, elapsed=1.45s
+2026-07-19 10:54:29 INFO [deepseek_client] DeepSeek request: prompt_len=1864, attempt=1
+2026-07-19 10:54:31 INFO [deepseek_client] DeepSeek response: len=91, elapsed=2.06s
+2026-07-19 10:54:43 INFO [deepseek_client] DeepSeek request: prompt_len=271, attempt=1
+2026-07-19 10:54:48 INFO [deepseek_client] DeepSeek response: len=430, elapsed=4.82s
+2026-07-19 10:59:44 INFO [deepseek_client] DeepSeek request: prompt_len=4, attempt=1
+2026-07-19 10:59:45 INFO [deepseek_client] DeepSeek response: len=2, elapsed=1.55s
+2026-07-19 10:59:45 INFO [pubmed_client] PubMed ESearch: query=cancer, page=1, page_size=1
+2026-07-19 10:59:46 ERROR [pubmed_client] PubMed ESearch connection error
+2026-07-19 10:59:46 WARNING [health_bp] Health check PubMed failed: PubMed服务连接失败，请稍后重试
+2026-07-19 11:12:41 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:12:41 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:27:51 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:30:19 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:31:36 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:31:37 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:32:03 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:32:03 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:32:42 INFO [deepseek_client] DeepSeek request: prompt_len=86, attempt=1
+2026-07-19 11:32:44 INFO [deepseek_client] DeepSeek response: len=13, elapsed=2.16s
+2026-07-19 11:32:44 INFO [keyword_service] Generated keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:32:55 INFO [deepseek_client] DeepSeek request: prompt_len=94, attempt=1
+2026-07-19 11:32:57 INFO [deepseek_client] DeepSeek response: len=43, elapsed=1.88s
+2026-07-19 11:32:57 INFO [keyword_service] Translated keywords: ['lung adenocarcinoma', 'EGFR mutation', 'prognosis']
+2026-07-19 11:32:57 INFO [pubmed_client] PubMed ESearch: query=lung adenocarcinoma AND EGFR mutation AND prognosis, page=1, page_size=9
+2026-07-19 11:32:57 ERROR [pubmed_client] PubMed ESearch connection error
+2026-07-19 11:32:57 ERROR [literature_bp] Search literatures API error: PubMed服务连接失败，请稍后重试
+2026-07-19 11:33:22 INFO [deepseek_client] DeepSeek request: prompt_len=84, attempt=1
+2026-07-19 11:33:23 INFO [deepseek_client] DeepSeek response: len=19, elapsed=1.03s
+2026-07-19 11:33:23 INFO [keyword_service] Translated keywords: ['Lung adenocarcinoma']
+2026-07-19 11:33:23 INFO [pubmed_client] PubMed ESearch: query=Lung adenocarcinoma, page=1, page_size=9
+2026-07-19 11:33:23 INFO [pubmed_client] PubMed ESearch result: total=76139, ids=9
+2026-07-19 11:33:23 INFO [pubmed_client] PubMed EFetch: pmids=9
+2026-07-19 11:33:24 INFO [deepseek_client] DeepSeek request: prompt_len=84, attempt=1
+2026-07-19 11:33:26 INFO [deepseek_client] DeepSeek response: len=10, elapsed=1.61s
+2026-07-19 11:33:26 INFO [deepseek_client] DeepSeek request: prompt_len=877, attempt=1
+2026-07-19 11:33:29 INFO [deepseek_client] DeepSeek response: len=78, elapsed=2.58s
+2026-07-19 11:33:29 INFO [deepseek_client] DeepSeek request: prompt_len=98, attempt=1
+2026-07-19 11:33:30 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.51s
+2026-07-19 11:33:30 INFO [deepseek_client] DeepSeek request: prompt_len=709, attempt=1
+2026-07-19 11:33:33 INFO [deepseek_client] DeepSeek response: len=82, elapsed=2.46s
+2026-07-19 11:33:33 INFO [deepseek_client] DeepSeek request: prompt_len=106, attempt=1
+2026-07-19 11:33:34 INFO [deepseek_client] DeepSeek response: len=22, elapsed=1.26s
+2026-07-19 11:33:34 INFO [deepseek_client] DeepSeek request: prompt_len=768, attempt=1
+2026-07-19 11:33:34 INFO [deepseek_client] DeepSeek request: prompt_len=91, attempt=1
+2026-07-19 11:33:36 INFO [deepseek_client] DeepSeek response: len=25, elapsed=1.28s
+2026-07-19 11:33:36 INFO [deepseek_client] DeepSeek response: len=69, elapsed=2.22s
+2026-07-19 11:33:36 INFO [deepseek_client] DeepSeek request: prompt_len=67, attempt=1
+2026-07-19 11:33:38 INFO [deepseek_client] DeepSeek response: len=4, elapsed=1.87s
+2026-07-19 11:33:38 INFO [deepseek_client] DeepSeek request: prompt_len=853, attempt=1
+2026-07-19 11:33:41 INFO [deepseek_client] DeepSeek response: len=71, elapsed=2.83s
+2026-07-19 11:33:41 INFO [deepseek_client] DeepSeek request: prompt_len=189, attempt=1
+2026-07-19 11:33:42 INFO [deepseek_client] DeepSeek request: prompt_len=86, attempt=1
+2026-07-19 11:33:43 INFO [deepseek_client] DeepSeek response: len=38, elapsed=2.19s
+2026-07-19 11:33:43 INFO [deepseek_client] DeepSeek request: prompt_len=1829, attempt=1
+2026-07-19 11:33:43 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.35s
+2026-07-19 11:33:43 INFO [keyword_service] Generated keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:33:45 INFO [deepseek_client] DeepSeek response: len=95, elapsed=2.08s
+2026-07-19 11:33:45 INFO [deepseek_client] DeepSeek request: prompt_len=122, attempt=1
+2026-07-19 11:33:47 INFO [deepseek_client] DeepSeek response: len=23, elapsed=1.86s
+2026-07-19 11:33:47 INFO [deepseek_client] DeepSeek request: prompt_len=1227, attempt=1
+2026-07-19 11:33:49 INFO [deepseek_client] DeepSeek request: prompt_len=94, attempt=1
+2026-07-19 11:33:50 INFO [deepseek_client] DeepSeek response: len=89, elapsed=2.71s
+2026-07-19 11:33:50 INFO [deepseek_client] DeepSeek request: prompt_len=154, attempt=1
+2026-07-19 11:33:50 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.52s
+2026-07-19 11:33:50 INFO [keyword_service] Translated keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:33:50 INFO [pubmed_client] PubMed ESearch: query=肺腺癌 AND EGFR突变 AND 预后, page=1, page_size=9
+2026-07-19 11:33:50 ERROR [pubmed_client] PubMed ESearch connection error
+2026-07-19 11:33:50 ERROR [literature_bp] Search literatures API error: PubMed服务连接失败，请稍后重试
+2026-07-19 11:33:52 INFO [deepseek_client] DeepSeek response: len=25, elapsed=2.06s
+2026-07-19 11:33:52 INFO [deepseek_client] DeepSeek request: prompt_len=1532, attempt=1
+2026-07-19 11:33:53 INFO [deepseek_client] DeepSeek response: len=67, elapsed=1.79s
+2026-07-19 11:33:53 INFO [deepseek_client] DeepSeek request: prompt_len=153, attempt=1
+2026-07-19 11:33:57 INFO [deepseek_client] DeepSeek request: prompt_len=106, attempt=1
+2026-07-19 11:33:58 INFO [deepseek_client] DeepSeek response: len=28, elapsed=4.37s
+2026-07-19 11:33:58 INFO [deepseek_client] DeepSeek request: prompt_len=1356, attempt=1
+2026-07-19 11:33:59 INFO [deepseek_client] DeepSeek response: len=25, elapsed=1.56s
+2026-07-19 11:33:59 INFO [keyword_service] Translated keywords: ['EGFR', 'mutation', 'lung cancer']
+2026-07-19 11:33:59 INFO [pubmed_client] PubMed ESearch: query=EGFR AND mutation AND lung cancer, page=1, page_size=9
+2026-07-19 11:33:59 ERROR [pubmed_client] PubMed ESearch connection error
+2026-07-19 11:34:00 INFO [deepseek_client] DeepSeek response: len=73, elapsed=2.11s
+2026-07-19 11:34:00 INFO [deepseek_client] DeepSeek request: prompt_len=191, attempt=1
+2026-07-19 11:34:03 INFO [deepseek_client] DeepSeek response: len=44, elapsed=2.93s
+2026-07-19 11:34:03 INFO [deepseek_client] DeepSeek request: prompt_len=1495, attempt=1
+2026-07-19 11:34:06 INFO [deepseek_client] DeepSeek response: len=122, elapsed=3.36s
+2026-07-19 11:37:16 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:37:36 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:37:43 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:37:55 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:38:04 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:38:22 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:38:31 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:41:59 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:42:23 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:42:56 INFO [deepseek_client] DeepSeek request: prompt_len=106, attempt=1
+2026-07-19 11:42:57 INFO [deepseek_client] DeepSeek response: len=25, elapsed=1.61s
+2026-07-19 11:42:57 INFO [keyword_service] Translated keywords: ['EGFR', 'mutation', 'lung cancer']
+2026-07-19 11:42:57 INFO [pubmed_client] PubMed ESearch: query=EGFR AND mutation AND lung cancer, page=1, page_size=9
+2026-07-19 11:42:58 INFO [pubmed_client] PubMed ESearch result: total=20941, ids=9
+2026-07-19 11:42:58 INFO [pubmed_client] PubMed EFetch: pmids=9
+2026-07-19 11:43:00 INFO [deepseek_client] DeepSeek request: prompt_len=115, attempt=1
+2026-07-19 11:43:01 INFO [deepseek_client] DeepSeek response: len=22, elapsed=1.91s
+2026-07-19 11:43:01 INFO [deepseek_client] DeepSeek request: prompt_len=1565, attempt=1
+2026-07-19 11:43:04 INFO [deepseek_client] DeepSeek response: len=86, elapsed=2.81s
+2026-07-19 11:43:04 INFO [deepseek_client] DeepSeek request: prompt_len=120, attempt=1
+2026-07-19 11:43:06 INFO [deepseek_client] DeepSeek response: len=26, elapsed=1.91s
+2026-07-19 11:43:06 INFO [deepseek_client] DeepSeek request: prompt_len=1487, attempt=1
+2026-07-19 11:43:09 INFO [deepseek_client] DeepSeek response: len=71, elapsed=2.46s
+2026-07-19 11:43:09 INFO [deepseek_client] DeepSeek request: prompt_len=120, attempt=1
+2026-07-19 11:43:11 INFO [deepseek_client] DeepSeek response: len=25, elapsed=2.39s
+2026-07-19 11:43:11 INFO [deepseek_client] DeepSeek request: prompt_len=1235, attempt=1
+2026-07-19 11:43:14 INFO [deepseek_client] DeepSeek response: len=103, elapsed=2.65s
+2026-07-19 11:43:14 INFO [deepseek_client] DeepSeek request: prompt_len=140, attempt=1
+2026-07-19 11:43:15 INFO [deepseek_client] DeepSeek response: len=27, elapsed=1.71s
+2026-07-19 11:43:15 INFO [deepseek_client] DeepSeek request: prompt_len=1031, attempt=1
+2026-07-19 11:43:18 INFO [deepseek_client] DeepSeek response: len=117, elapsed=2.57s
+2026-07-19 11:43:18 INFO [deepseek_client] DeepSeek request: prompt_len=112, attempt=1
+2026-07-19 11:43:20 INFO [deepseek_client] DeepSeek response: len=20, elapsed=2.04s
+2026-07-19 11:43:20 INFO [deepseek_client] DeepSeek request: prompt_len=1292, attempt=1
+2026-07-19 11:43:22 INFO [deepseek_client] DeepSeek response: len=88, elapsed=2.23s
+2026-07-19 11:43:22 INFO [deepseek_client] DeepSeek request: prompt_len=177, attempt=1
+2026-07-19 11:43:24 INFO [deepseek_client] DeepSeek response: len=41, elapsed=2.06s
+2026-07-19 11:43:24 INFO [deepseek_client] DeepSeek request: prompt_len=1306, attempt=1
+2026-07-19 11:43:26 INFO [deepseek_client] DeepSeek response: len=93, elapsed=2.04s
+2026-07-19 11:43:26 INFO [deepseek_client] DeepSeek request: prompt_len=87, attempt=1
+2026-07-19 11:43:29 INFO [deepseek_client] DeepSeek response: len=16, elapsed=2.54s
+2026-07-19 11:43:29 INFO [deepseek_client] DeepSeek request: prompt_len=349, attempt=1
+2026-07-19 11:43:31 INFO [deepseek_client] DeepSeek response: len=86, elapsed=1.99s
+2026-07-19 11:43:31 INFO [deepseek_client] DeepSeek request: prompt_len=84, attempt=1
+2026-07-19 11:43:33 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.77s
+2026-07-19 11:43:33 INFO [deepseek_client] DeepSeek request: prompt_len=118, attempt=1
+2026-07-19 11:43:34 INFO [deepseek_client] DeepSeek response: len=25, elapsed=1.76s
+2026-07-19 11:43:34 INFO [deepseek_client] DeepSeek request: prompt_len=1864, attempt=1
+2026-07-19 11:43:37 INFO [deepseek_client] DeepSeek response: len=76, elapsed=2.56s
+2026-07-19 11:44:30 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:44:31 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:45:00 INFO [deepseek_client] DeepSeek request: prompt_len=86, attempt=1
+2026-07-19 11:45:02 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.99s
+2026-07-19 11:45:02 INFO [keyword_service] Generated keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:45:08 INFO [deepseek_client] DeepSeek request: prompt_len=94, attempt=1
+2026-07-19 11:45:10 INFO [deepseek_client] DeepSeek response: len=43, elapsed=1.50s
+2026-07-19 11:45:10 INFO [keyword_service] Translated keywords: ['lung adenocarcinoma', 'EGFR mutation', 'prognosis']
+2026-07-19 11:45:10 INFO [pubmed_client] PubMed ESearch: query=lung adenocarcinoma AND EGFR mutation AND prognosis, page=1, page_size=9
+2026-07-19 11:45:10 ERROR [pubmed_client] PubMed ESearch connection error
+2026-07-19 11:45:10 WARNING [literature_service] PubMed search failed, using mock data: PubMed服务连接失败，请稍后重试
+2026-07-19 11:45:10 INFO [literature_service] Using mock literature data for keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:45:53 INFO [deepseek_client] DeepSeek request: prompt_len=89, attempt=1
+2026-07-19 11:45:54 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.79s
+2026-07-19 11:45:54 INFO [keyword_service] Generated keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:46:00 INFO [deepseek_client] DeepSeek request: prompt_len=94, attempt=1
+2026-07-19 11:46:02 INFO [deepseek_client] DeepSeek response: len=43, elapsed=1.49s
+2026-07-19 11:46:02 INFO [keyword_service] Translated keywords: ['lung adenocarcinoma', 'EGFR mutation', 'prognosis']
+2026-07-19 11:46:02 INFO [pubmed_client] PubMed ESearch: query=lung adenocarcinoma AND EGFR mutation AND prognosis, page=1, page_size=9
+2026-07-19 11:46:02 INFO [pubmed_client] PubMed ESearch result: total=2837, ids=9
+2026-07-19 11:46:02 INFO [pubmed_client] PubMed EFetch: pmids=9
+2026-07-19 11:46:03 INFO [deepseek_client] DeepSeek request: prompt_len=179, attempt=1
+2026-07-19 11:46:05 INFO [deepseek_client] DeepSeek response: len=39, elapsed=1.44s
+2026-07-19 11:46:05 INFO [deepseek_client] DeepSeek request: prompt_len=1717, attempt=1
+2026-07-19 11:46:08 INFO [deepseek_client] DeepSeek response: len=93, elapsed=3.07s
+2026-07-19 11:46:08 INFO [deepseek_client] DeepSeek request: prompt_len=134, attempt=1
+2026-07-19 11:46:09 INFO [deepseek_client] DeepSeek response: len=29, elapsed=1.69s
+2026-07-19 11:46:09 INFO [deepseek_client] DeepSeek request: prompt_len=1686, attempt=1
+2026-07-19 11:46:12 INFO [deepseek_client] DeepSeek response: len=83, elapsed=2.27s
+2026-07-19 11:46:12 INFO [deepseek_client] DeepSeek request: prompt_len=171, attempt=1
+2026-07-19 11:46:16 INFO [deepseek_client] DeepSeek response: len=43, elapsed=3.87s
+2026-07-19 11:46:16 INFO [deepseek_client] DeepSeek request: prompt_len=1964, attempt=1
+2026-07-19 11:46:18 INFO [deepseek_client] DeepSeek response: len=128, elapsed=2.73s
+2026-07-19 11:46:18 INFO [deepseek_client] DeepSeek request: prompt_len=139, attempt=1
+2026-07-19 11:46:20 INFO [deepseek_client] DeepSeek response: len=26, elapsed=1.78s
+2026-07-19 11:46:20 INFO [deepseek_client] DeepSeek request: prompt_len=3321, attempt=1
+2026-07-19 11:46:24 INFO [deepseek_client] DeepSeek response: len=127, elapsed=3.34s
+2026-07-19 11:46:24 INFO [deepseek_client] DeepSeek request: prompt_len=151, attempt=1
+2026-07-19 11:46:26 INFO [deepseek_client] DeepSeek response: len=36, elapsed=2.00s
+2026-07-19 11:46:26 INFO [deepseek_client] DeepSeek request: prompt_len=1324, attempt=1
+2026-07-19 11:46:28 INFO [deepseek_client] DeepSeek response: len=80, elapsed=2.52s
+2026-07-19 11:46:28 INFO [deepseek_client] DeepSeek request: prompt_len=145, attempt=1
+2026-07-19 11:46:30 INFO [deepseek_client] DeepSeek response: len=26, elapsed=1.66s
+2026-07-19 11:46:30 INFO [deepseek_client] DeepSeek request: prompt_len=1354, attempt=1
+2026-07-19 11:46:32 INFO [deepseek_client] DeepSeek response: len=103, elapsed=2.37s
+2026-07-19 11:46:32 INFO [deepseek_client] DeepSeek request: prompt_len=240, attempt=1
+2026-07-19 11:46:35 INFO [deepseek_client] DeepSeek response: len=59, elapsed=2.50s
+2026-07-19 11:46:35 INFO [deepseek_client] DeepSeek request: prompt_len=1730, attempt=1
+2026-07-19 11:46:37 INFO [deepseek_client] DeepSeek response: len=103, elapsed=2.52s
+2026-07-19 11:46:37 INFO [deepseek_client] DeepSeek request: prompt_len=226, attempt=1
+2026-07-19 11:46:39 INFO [deepseek_client] DeepSeek response: len=44, elapsed=2.10s
+2026-07-19 11:46:39 INFO [deepseek_client] DeepSeek request: prompt_len=2280, attempt=1
+2026-07-19 11:46:42 INFO [deepseek_client] DeepSeek response: len=103, elapsed=3.07s
+2026-07-19 11:46:42 INFO [deepseek_client] DeepSeek request: prompt_len=218, attempt=1
+2026-07-19 11:46:44 INFO [deepseek_client] DeepSeek response: len=45, elapsed=2.00s
+2026-07-19 11:46:44 INFO [deepseek_client] DeepSeek request: prompt_len=3058, attempt=1
+2026-07-19 11:46:47 INFO [deepseek_client] DeepSeek response: len=100, elapsed=2.27s
+2026-07-19 11:47:26 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:48:22 INFO [deepseek_client] DeepSeek request: prompt_len=86, attempt=1
+2026-07-19 11:48:24 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.39s
+2026-07-19 11:48:24 INFO [keyword_service] Generated keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:48:28 INFO [deepseek_client] DeepSeek request: prompt_len=94, attempt=1
+2026-07-19 11:48:30 INFO [deepseek_client] DeepSeek response: len=43, elapsed=1.97s
+2026-07-19 11:48:30 INFO [keyword_service] Translated keywords: ['lung adenocarcinoma', 'EGFR mutation', 'prognosis']
+2026-07-19 11:48:30 INFO [pubmed_client] PubMed ESearch: query=lung adenocarcinoma AND EGFR mutation AND prognosis, page=1, page_size=9
+2026-07-19 11:48:31 INFO [pubmed_client] PubMed ESearch result: total=2837, ids=9
+2026-07-19 11:48:31 INFO [pubmed_client] PubMed EFetch: pmids=9
+2026-07-19 11:48:31 ERROR [pubmed_client] PubMed EFetch connection error
+2026-07-19 11:48:31 WARNING [literature_service] PubMed search failed, using mock data: PubMed服务连接失败
+2026-07-19 11:48:31 INFO [literature_service] Using mock literature data for keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:49:11 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:49:12 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:49:33 INFO [deepseek_client] DeepSeek request: prompt_len=86, attempt=1
+2026-07-19 11:49:34 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.36s
+2026-07-19 11:49:34 INFO [keyword_service] Generated keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:49:38 INFO [deepseek_client] DeepSeek request: prompt_len=94, attempt=1
+2026-07-19 11:49:40 INFO [deepseek_client] DeepSeek response: len=43, elapsed=1.66s
+2026-07-19 11:49:40 INFO [keyword_service] Translated keywords: ['lung adenocarcinoma', 'EGFR mutation', 'prognosis']
+2026-07-19 11:49:40 INFO [pubmed_client] PubMed ESearch: query=lung adenocarcinoma AND EGFR mutation AND prognosis, page=1, page_size=9
+2026-07-19 11:49:40 INFO [pubmed_client] PubMed ESearch result: total=2837, ids=9
+2026-07-19 11:49:40 INFO [pubmed_client] PubMed EFetch: pmids=9
+2026-07-19 11:49:42 INFO [deepseek_client] DeepSeek request: prompt_len=179, attempt=1
+2026-07-19 11:49:44 INFO [deepseek_client] DeepSeek response: len=37, elapsed=2.12s
+2026-07-19 11:49:44 INFO [deepseek_client] DeepSeek request: prompt_len=1717, attempt=1
+2026-07-19 11:49:47 INFO [deepseek_client] DeepSeek response: len=115, elapsed=2.94s
+2026-07-19 11:49:47 INFO [deepseek_client] DeepSeek request: prompt_len=134, attempt=1
+2026-07-19 11:49:49 INFO [deepseek_client] DeepSeek response: len=27, elapsed=1.59s
+2026-07-19 11:49:49 INFO [deepseek_client] DeepSeek request: prompt_len=1686, attempt=1
+2026-07-19 11:49:51 INFO [deepseek_client] DeepSeek response: len=91, elapsed=2.70s
+2026-07-19 11:49:51 INFO [deepseek_client] DeepSeek request: prompt_len=171, attempt=1
+2026-07-19 11:49:54 INFO [deepseek_client] DeepSeek response: len=40, elapsed=2.29s
+2026-07-19 11:49:54 INFO [deepseek_client] DeepSeek request: prompt_len=1964, attempt=1
+2026-07-19 11:49:56 INFO [deepseek_client] DeepSeek response: len=108, elapsed=2.36s
+2026-07-19 11:49:56 INFO [deepseek_client] DeepSeek request: prompt_len=139, attempt=1
+2026-07-19 11:49:58 INFO [deepseek_client] DeepSeek response: len=26, elapsed=1.70s
+2026-07-19 11:49:58 INFO [deepseek_client] DeepSeek request: prompt_len=3321, attempt=1
+2026-07-19 11:50:02 INFO [deepseek_client] DeepSeek response: len=145, elapsed=4.47s
+2026-07-19 11:50:02 INFO [deepseek_client] DeepSeek request: prompt_len=151, attempt=1
+2026-07-19 11:50:05 INFO [deepseek_client] DeepSeek response: len=36, elapsed=2.28s
+2026-07-19 11:50:05 INFO [deepseek_client] DeepSeek request: prompt_len=1324, attempt=1
+2026-07-19 11:50:07 INFO [deepseek_client] DeepSeek response: len=76, elapsed=2.44s
+2026-07-19 11:50:07 INFO [deepseek_client] DeepSeek request: prompt_len=145, attempt=1
+2026-07-19 11:50:09 INFO [deepseek_client] DeepSeek response: len=27, elapsed=1.79s
+2026-07-19 11:50:09 INFO [deepseek_client] DeepSeek request: prompt_len=1354, attempt=1
+2026-07-19 11:50:11 INFO [deepseek_client] DeepSeek response: len=85, elapsed=2.20s
+2026-07-19 11:50:11 INFO [deepseek_client] DeepSeek request: prompt_len=240, attempt=1
+2026-07-19 11:50:13 INFO [deepseek_client] DeepSeek response: len=59, elapsed=1.97s
+2026-07-19 11:50:13 INFO [deepseek_client] DeepSeek request: prompt_len=1730, attempt=1
+2026-07-19 11:50:16 INFO [deepseek_client] DeepSeek response: len=84, elapsed=2.74s
+2026-07-19 11:50:16 INFO [deepseek_client] DeepSeek request: prompt_len=226, attempt=1
+2026-07-19 11:50:18 INFO [deepseek_client] DeepSeek response: len=44, elapsed=2.29s
+2026-07-19 11:50:18 INFO [deepseek_client] DeepSeek request: prompt_len=2280, attempt=1
+2026-07-19 11:50:21 INFO [deepseek_client] DeepSeek response: len=108, elapsed=2.83s
+2026-07-19 11:50:21 INFO [deepseek_client] DeepSeek request: prompt_len=218, attempt=1
+2026-07-19 11:50:22 INFO [deepseek_client] DeepSeek request: prompt_len=86, attempt=1
+2026-07-19 11:50:23 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.50s
+2026-07-19 11:50:23 INFO [keyword_service] Generated keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:50:24 INFO [deepseek_client] DeepSeek response: len=45, elapsed=3.53s
+2026-07-19 11:50:24 INFO [deepseek_client] DeepSeek request: prompt_len=3058, attempt=1
+2026-07-19 11:50:27 INFO [deepseek_client] DeepSeek response: len=103, elapsed=2.44s
+2026-07-19 11:50:29 INFO [deepseek_client] DeepSeek request: prompt_len=94, attempt=1
+2026-07-19 11:50:31 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.83s
+2026-07-19 11:50:31 INFO [keyword_service] Translated keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:50:31 INFO [pubmed_client] PubMed ESearch: query=肺腺癌 AND EGFR突变 AND 预后, page=1, page_size=9
+2026-07-19 11:50:32 INFO [pubmed_client] PubMed ESearch result: total=151720, ids=9
+2026-07-19 11:50:32 INFO [pubmed_client] PubMed EFetch: pmids=9
+2026-07-19 11:50:32 ERROR [pubmed_client] PubMed EFetch connection error
+2026-07-19 11:50:32 WARNING [literature_service] PubMed search failed, using mock data: PubMed服务连接失败
+2026-07-19 11:50:32 INFO [literature_service] Using mock literature data for keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:51:49 INFO [deepseek_client] DeepSeek request: prompt_len=442, attempt=1
+2026-07-19 11:51:53 INFO [deepseek_client] DeepSeek response: len=353, elapsed=3.69s
+2026-07-19 11:55:13 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:55:13 INFO [__init__] MedSearch Flask app initialized
+2026-07-19 11:55:46 INFO [deepseek_client] DeepSeek request: prompt_len=86, attempt=1
+2026-07-19 11:55:48 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.44s
+2026-07-19 11:55:48 INFO [keyword_service] Generated keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:55:52 INFO [deepseek_client] DeepSeek request: prompt_len=94, attempt=1
+2026-07-19 11:55:53 INFO [deepseek_client] DeepSeek response: len=43, elapsed=1.54s
+2026-07-19 11:55:53 INFO [keyword_service] Translated keywords: ['lung adenocarcinoma', 'EGFR mutation', 'prognosis']
+2026-07-19 11:55:53 INFO [pubmed_client] PubMed ESearch: query=lung adenocarcinoma AND EGFR mutation AND prognosis, page=1, page_size=9
+2026-07-19 11:55:55 INFO [pubmed_client] PubMed ESearch result: total=2837, ids=9
+2026-07-19 11:55:55 INFO [pubmed_client] PubMed EFetch: pmids=9
+2026-07-19 11:55:56 INFO [deepseek_client] DeepSeek request: prompt_len=179, attempt=1
+2026-07-19 11:55:58 INFO [deepseek_client] DeepSeek response: len=37, elapsed=2.52s
+2026-07-19 11:55:58 INFO [deepseek_client] DeepSeek request: prompt_len=1717, attempt=1
+2026-07-19 11:56:01 INFO [deepseek_client] DeepSeek response: len=125, elapsed=2.77s
+2026-07-19 11:56:01 INFO [deepseek_client] DeepSeek request: prompt_len=134, attempt=1
+2026-07-19 11:56:02 INFO [deepseek_client] DeepSeek response: len=27, elapsed=1.25s
+2026-07-19 11:56:02 INFO [deepseek_client] DeepSeek request: prompt_len=1686, attempt=1
+2026-07-19 11:56:05 INFO [deepseek_client] DeepSeek response: len=111, elapsed=2.31s
+2026-07-19 11:56:05 INFO [deepseek_client] DeepSeek request: prompt_len=171, attempt=1
+2026-07-19 11:56:06 INFO [deepseek_client] DeepSeek request: prompt_len=86, attempt=1
+2026-07-19 11:56:07 INFO [deepseek_client] DeepSeek response: len=42, elapsed=2.20s
+2026-07-19 11:56:07 INFO [deepseek_client] DeepSeek request: prompt_len=1964, attempt=1
+2026-07-19 11:56:08 INFO [deepseek_client] DeepSeek response: len=13, elapsed=1.41s
+2026-07-19 11:56:08 INFO [keyword_service] Generated keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:56:09 INFO [deepseek_client] DeepSeek response: len=102, elapsed=2.57s
+2026-07-19 11:56:09 INFO [deepseek_client] DeepSeek request: prompt_len=139, attempt=1
+2026-07-19 11:56:11 INFO [deepseek_client] DeepSeek response: len=26, elapsed=1.56s
+2026-07-19 11:56:11 INFO [deepseek_client] DeepSeek request: prompt_len=3321, attempt=1
+2026-07-19 11:56:12 INFO [deepseek_client] DeepSeek request: prompt_len=94, attempt=1
+2026-07-19 11:56:13 INFO [deepseek_client] DeepSeek response: len=43, elapsed=1.30s
+2026-07-19 11:56:13 INFO [keyword_service] Translated keywords: ['lung adenocarcinoma', 'EGFR mutation', 'prognosis']
+2026-07-19 11:56:13 INFO [pubmed_client] PubMed ESearch: query=lung adenocarcinoma AND EGFR mutation AND prognosis, page=1, page_size=9
+2026-07-19 11:56:13 ERROR [pubmed_client] PubMed ESearch connection error
+2026-07-19 11:56:13 WARNING [literature_service] PubMed search failed, using mock data: PubMed服务连接失败，请稍后重试
+2026-07-19 11:56:13 INFO [literature_service] Using mock literature data for keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:56:14 INFO [deepseek_client] DeepSeek response: len=145, elapsed=3.07s
+2026-07-19 11:56:14 INFO [deepseek_client] DeepSeek request: prompt_len=151, attempt=1
+2026-07-19 11:56:15 INFO [deepseek_client] DeepSeek response: len=37, elapsed=1.39s
+2026-07-19 11:56:15 INFO [deepseek_client] DeepSeek request: prompt_len=1324, attempt=1
+2026-07-19 11:56:17 INFO [deepseek_client] DeepSeek request: prompt_len=442, attempt=1
+2026-07-19 11:56:18 INFO [deepseek_client] DeepSeek response: len=100, elapsed=2.27s
+2026-07-19 11:56:18 INFO [deepseek_client] DeepSeek request: prompt_len=145, attempt=1
+2026-07-19 11:56:20 INFO [deepseek_client] DeepSeek response: len=26, elapsed=1.92s
+2026-07-19 11:56:20 INFO [deepseek_client] DeepSeek request: prompt_len=1354, attempt=1
+2026-07-19 11:56:21 INFO [deepseek_client] DeepSeek response: len=362, elapsed=4.11s
+2026-07-19 11:56:21 INFO [deepseek_client] DeepSeek request: prompt_len=423, attempt=1
+2026-07-19 11:56:22 INFO [deepseek_client] DeepSeek response: len=97, elapsed=2.19s
+2026-07-19 11:56:22 INFO [deepseek_client] DeepSeek request: prompt_len=240, attempt=1
+2026-07-19 11:56:24 INFO [deepseek_client] DeepSeek response: len=58, elapsed=1.98s
+2026-07-19 11:56:24 INFO [deepseek_client] DeepSeek request: prompt_len=1730, attempt=1
+2026-07-19 11:56:26 INFO [deepseek_client] DeepSeek response: len=90, elapsed=2.13s
+2026-07-19 11:56:26 INFO [deepseek_client] DeepSeek request: prompt_len=226, attempt=1
+2026-07-19 11:56:26 INFO [deepseek_client] DeepSeek response: len=342, elapsed=4.77s
+2026-07-19 11:56:28 INFO [deepseek_client] DeepSeek response: len=44, elapsed=1.74s
+2026-07-19 11:56:28 INFO [deepseek_client] DeepSeek request: prompt_len=2280, attempt=1
+2026-07-19 11:56:30 INFO [deepseek_client] DeepSeek response: len=110, elapsed=2.62s
+2026-07-19 11:56:30 INFO [deepseek_client] DeepSeek request: prompt_len=218, attempt=1
+2026-07-19 11:56:33 INFO [deepseek_client] DeepSeek response: len=46, elapsed=2.63s
+2026-07-19 11:56:33 INFO [deepseek_client] DeepSeek request: prompt_len=3058, attempt=1
+2026-07-19 11:56:35 INFO [deepseek_client] DeepSeek response: len=100, elapsed=2.26s
+2026-07-19 11:59:29 INFO [deepseek_client] DeepSeek request: prompt_len=86, attempt=1
+2026-07-19 11:59:32 INFO [deepseek_client] DeepSeek response: len=13, elapsed=2.40s
+2026-07-19 11:59:32 INFO [keyword_service] Generated keywords: ['肺腺癌', 'EGFR突变', '预后']
+2026-07-19 11:59:35 INFO [deepseek_client] DeepSeek request: prompt_len=94, attempt=1
+2026-07-19 11:59:37 INFO [deepseek_client] DeepSeek response: len=43, elapsed=1.57s
+2026-07-19 11:59:37 INFO [keyword_service] Translated keywords: ['lung adenocarcinoma', 'EGFR mutation', 'prognosis']
+2026-07-19 11:59:37 INFO [pubmed_client] PubMed ESearch: query=lung adenocarcinoma AND EGFR mutation AND prognosis, page=1, page_size=9
+2026-07-19 11:59:39 INFO [pubmed_client] PubMed ESearch result: total=2837, ids=9
+2026-07-19 11:59:39 INFO [pubmed_client] PubMed EFetch: pmids=9
+2026-07-19 11:59:40 INFO [deepseek_client] DeepSeek request: prompt_len=179, attempt=1
+2026-07-19 11:59:41 INFO [deepseek_client] DeepSeek response: len=37, elapsed=1.54s
+2026-07-19 11:59:41 INFO [deepseek_client] DeepSeek request: prompt_len=1717, attempt=1
+2026-07-19 11:59:44 INFO [deepseek_client] DeepSeek response: len=103, elapsed=2.42s
+2026-07-19 11:59:44 INFO [deepseek_client] DeepSeek request: prompt_len=134, attempt=1
+2026-07-19 11:59:45 INFO [deepseek_client] DeepSeek response: len=27, elapsed=1.76s
+2026-07-19 11:59:45 INFO [deepseek_client] DeepSeek request: prompt_len=1686, attempt=1
+2026-07-19 11:59:47 INFO [deepseek_client] DeepSeek response: len=88, elapsed=2.11s
+2026-07-19 11:59:47 INFO [deepseek_client] DeepSeek request: prompt_len=171, attempt=1
+2026-07-19 11:59:50 INFO [deepseek_client] DeepSeek response: len=41, elapsed=2.51s
+2026-07-19 11:59:50 INFO [deepseek_client] DeepSeek request: prompt_len=1964, attempt=1
+2026-07-19 11:59:53 INFO [deepseek_client] DeepSeek response: len=96, elapsed=2.94s
+2026-07-19 11:59:53 INFO [deepseek_client] DeepSeek request: prompt_len=139, attempt=1
+2026-07-19 11:59:55 INFO [deepseek_client] DeepSeek response: len=26, elapsed=1.82s
+2026-07-19 11:59:55 INFO [deepseek_client] DeepSeek request: prompt_len=3321, attempt=1
+2026-07-19 11:59:57 INFO [deepseek_client] DeepSeek response: len=101, elapsed=2.54s
+2026-07-19 11:59:57 INFO [deepseek_client] DeepSeek request: prompt_len=151, attempt=1
+2026-07-19 11:59:59 INFO [deepseek_client] DeepSeek response: len=36, elapsed=1.93s
+2026-07-19 11:59:59 INFO [deepseek_client] DeepSeek request: prompt_len=1324, attempt=1
+2026-07-19 12:00:02 INFO [deepseek_client] DeepSeek response: len=95, elapsed=2.70s
+2026-07-19 12:00:02 INFO [deepseek_client] DeepSeek request: prompt_len=145, attempt=1
+2026-07-19 12:00:04 INFO [deepseek_client] DeepSeek response: len=26, elapsed=1.74s
+2026-07-19 12:00:04 INFO [deepseek_client] DeepSeek request: prompt_len=1354, attempt=1
+2026-07-19 12:00:06 INFO [deepseek_client] DeepSeek response: len=72, elapsed=1.93s
+2026-07-19 12:00:06 INFO [deepseek_client] DeepSeek request: prompt_len=240, attempt=1
+2026-07-19 12:00:09 INFO [deepseek_client] DeepSeek response: len=58, elapsed=3.18s
+2026-07-19 12:00:09 INFO [deepseek_client] DeepSeek request: prompt_len=1730, attempt=1
+2026-07-19 12:00:11 INFO [deepseek_client] DeepSeek response: len=88, elapsed=2.68s
+2026-07-19 12:00:11 INFO [deepseek_client] DeepSeek request: prompt_len=226, attempt=1
+2026-07-19 12:00:13 INFO [deepseek_client] DeepSeek response: len=44, elapsed=1.73s
+2026-07-19 12:00:13 INFO [deepseek_client] DeepSeek request: prompt_len=2280, attempt=1
+2026-07-19 12:00:16 INFO [deepseek_client] DeepSeek response: len=147, elapsed=2.89s
+2026-07-19 12:00:16 INFO [deepseek_client] DeepSeek request: prompt_len=218, attempt=1
+2026-07-19 12:00:19 INFO [deepseek_client] DeepSeek response: len=45, elapsed=2.84s
+2026-07-19 12:00:19 INFO [deepseek_client] DeepSeek request: prompt_len=3058, attempt=1
+2026-07-19 12:00:21 INFO [deepseek_client] DeepSeek response: len=109, elapsed=2.12s
+2026-07-19 13:55:17 INFO [deepseek_client] DeepSeek request: prompt_len=2063, attempt=1
+2026-07-19 13:55:22 INFO [deepseek_client] DeepSeek response: len=514, elapsed=4.97s
+2026-07-19 13:55:22 INFO [deepseek_client] DeepSeek request: prompt_len=2599, attempt=1
+2026-07-19 13:55:28 INFO [deepseek_client] DeepSeek response: len=571, elapsed=5.46s
+2026-07-19 13:55:28 INFO [deepseek_client] DeepSeek request: prompt_len=3369, attempt=1
+2026-07-19 13:55:34 INFO [deepseek_client] DeepSeek response: len=740, elapsed=6.10s

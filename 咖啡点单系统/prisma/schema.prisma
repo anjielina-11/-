@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  phone     String    @unique @db.VarChar(20)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  orders    Order[]
+}
+
+model Menu {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(100)
+  category    String    @db.VarChar(50)
+  price       Float
+  imageUrl    String    @default("") @db.VarChar(500)
+  description String    @default("") @db.VarChar(1000)
+  isAvailable Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+}
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  phone     String?    @unique @db.VarChar(20)
+  sessionId String     @unique @db.VarChar(100)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  items     CartItem[]
+}
+
+model CartItem {
+  id          Int      @id @default(autoincrement())
+  cartId      Int
+  cart        Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  menuId      Int
+  menu        Menu     @relation(fields: [menuId], references: [id])
+  name        String   @db.VarChar(100)
+  imageUrl    String   @db.VarChar(500)
+  cupSize     String   @default("M") @db.VarChar(10)
+  temperature String   @default("hot") @db.VarChar(10)
+  quantity    Int      @default(1)
+  unitPrice   Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Order {
+  id           Int         @id @default(autoincrement())
+  customerName String      @db.VarChar(50)
+  phone        String      @db.VarChar(20)
+  totalAmount  Float
+  status       String      @default("pending") @db.VarChar(20)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  userId       Int?
+  user         User?       @relation(fields: [userId], references: [id])
+  items        OrderItem[]
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuId      Int
+  menu        Menu     @relation(fields: [menuId], references: [id])
+  quantity    Int
+  price       Float
+  cupSize     String   @default("M") @db.VarChar(10)
+  temperature String   @default("hot") @db.VarChar(10)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

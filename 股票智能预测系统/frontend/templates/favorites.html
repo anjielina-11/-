@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的收藏 - 股票智能预测系统</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --purple: #a78bfa;
+            --radius: 12px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+                'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 24px 16px;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Header */
+        .header { text-align: center; padding: 8px 0; }
+        .header h1 {
+            font-size: 28px; font-weight: 700; letter-spacing: 0.5px;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header p { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
+
+        /* Nav */
+        .nav-row { display: flex; justify-content: center; gap: 12px; }
+        .nav-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 10px 20px; font-size: 14px; font-weight: 600;
+            color: var(--text); background: var(--card-bg);
+            border: 1px solid var(--border); border-radius: 10px;
+            cursor: pointer; text-decoration: none; transition: all 0.2s;
+        }
+        .nav-btn:hover { border-color: var(--accent); color: var(--accent); background: #1a2744; }
+        .nav-btn.active { background: #1a3a5c; border-color: var(--accent); color: var(--accent); }
+        .nav-btn .nav-badge {
+            display: inline-block; min-width: 20px; padding: 1px 6px;
+            background: var(--accent); color: #fff; border-radius: 10px;
+            font-size: 11px; text-align: center;
+        }
+
+        /* Add Section */
+        .add-card {
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 20px 24px; box-shadow: var(--shadow);
+        }
+        .add-row { display: flex; gap: 10px; position: relative; }
+        .add-input-wrap { flex: 1; position: relative; }
+        .add-input-wrap input {
+            width: 100%; padding: 12px 14px; font-size: 15px;
+            border: 2px solid var(--border); border-radius: 10px;
+            background: #0f172a; color: var(--text); outline: none;
+            transition: border-color 0.2s;
+        }
+        .add-input-wrap input:focus { border-color: var(--accent); }
+        .add-input-wrap input::placeholder { color: #64748b; }
+        .btn-add {
+            padding: 12px 24px; font-size: 15px; font-weight: 600;
+            color: #fff; background: var(--success); border: none;
+            border-radius: 10px; cursor: pointer; white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .btn-add:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-add:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* Dropdown */
+        .dropdown {
+            display: none; position: absolute; top: 100%; left: 0; right: 0;
+            margin-top: 4px; background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 10px; max-height: 280px; overflow-y: auto; z-index: 100;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        .dropdown.active { display: block; }
+        .dropdown-item {
+            padding: 12px 14px; cursor: pointer; display: flex;
+            justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border); transition: background 0.15s;
+        }
+        .dropdown-item:last-child { border-bottom: none; }
+        .dropdown-item:hover { background: #1a2744; }
+        .dropdown-item .sname { font-weight: 600; font-size: 14px; }
+        .dropdown-item .sinfo { color: var(--text-secondary); font-size: 12px; }
+
+        /* Status */
+        .status-bar {
+            display: none; align-items: center; gap: 10px;
+            padding: 12px 16px; background: #1a2744;
+            border: 1px solid #334155; border-radius: 10px;
+            font-size: 14px; color: #93c5fd;
+        }
+        .status-bar.active { display: flex; }
+        .status-bar.error { background: #3b1515; border-color: #7f1d1d; color: #fca5a5; }
+        .spinner {
+            width: 20px; height: 20px; border: 3px solid #334155;
+            border-top-color: var(--accent); border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Favorites List */
+        .fav-list { display: flex; flex-direction: column; gap: 10px; }
+        .fav-item {
+            display: flex; align-items: center; gap: 14px;
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 16px 20px;
+            box-shadow: var(--shadow); transition: border-color 0.2s;
+        }
+        .fav-item:hover { border-color: #4a5568; }
+        .fav-rank {
+            width: 36px; height: 36px; line-height: 36px; text-align: center;
+            font-weight: 700; font-size: 14px; color: var(--text-secondary);
+            background: #0f172a; border-radius: 8px; flex-shrink: 0;
+        }
+        .fav-info { flex: 1; min-width: 0; }
+        .fav-name { font-size: 16px; font-weight: 600; }
+        .fav-code { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+        .fav-added { font-size: 11px; color: #64748b; }
+        .btn-analyze {
+            padding: 8px 18px; font-size: 13px; font-weight: 600;
+            color: #fff; background: var(--purple); border: none;
+            border-radius: 8px; cursor: pointer; text-decoration: none;
+            transition: all 0.2s; white-space: nowrap;
+        }
+        .btn-analyze:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-delete {
+            padding: 8px 14px; font-size: 13px; font-weight: 500;
+            color: var(--danger); background: transparent;
+            border: 1px solid #7f1d1d; border-radius: 8px; cursor: pointer;
+            transition: all 0.2s; white-space: nowrap;
+        }
+        .btn-delete:hover { background: #3b1515; }
+
+        .empty-state {
+            text-align: center; padding: 48px 20px; color: var(--text-secondary);
+        }
+        .empty-state .empty-icon { font-size: 56px; margin-bottom: 12px; }
+
+        @media (max-width: 640px) {
+            .add-row { flex-direction: column; }
+            .btn-add { width: 100%; }
+            .fav-item { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>⭐ 我的收藏</h1>
+            <p>管理关注股票，一键跳转智能分析</p>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav-row">
+            <a href="/" class="nav-btn">🏠 主页</a>
+            <a href="/favorites" class="nav-btn active">
+                ⭐ 我的收藏 <span class="nav-badge" id="favCount">0</span>
+            </a>
+        </div>
+
+        <!-- Add Stock -->
+        <div class="add-card">
+            <div class="add-row">
+                <div class="add-input-wrap">
+                    <input type="text" id="addInput"
+                        placeholder="搜索股票名称以添加..." autocomplete="off" />
+                    <div class="dropdown" id="dropdown"></div>
+                </div>
+                <button class="btn-add" id="addBtn" onclick="addFavorite()">
+                    ➕ 添加收藏
+                </button>
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div class="status-bar" id="statusBar">
+            <span id="statusText"></span>
+        </div>
+
+        <!-- Favorites List -->
+        <div class="fav-list" id="favList"></div>
+    </div>
+
+    <script>
+        // ============ DOM ============
+        const addInput = document.getElementById('addInput');
+        const dropdown = document.getElementById('dropdown');
+        const addBtn = document.getElementById('addBtn');
+        const statusBar = document.getElementById('statusBar');
+        const statusText = document.getElementById('statusText');
+        const favList = document.getElementById('favList');
+        const favCount = document.getElementById('favCount');
+
+        let selectedStock = null;
+        let searchTimer = null;
+
+        // ============ 加载收藏列表 ============
+        async function loadFavorites() {
+            try {
+                const resp = await fetch('/api/favorites');
+                const data = await resp.json();
+                const favs = data.favorites || [];
+                favCount.textContent = favs.length;
+                renderFavorites(favs);
+            } catch (e) {
+                showStatus('加载收藏列表失败: ' + e.message, true);
+            }
+        }
+
+        function renderFavorites(favs) {
+            if (!favs || favs.length === 0) {
+                favList.innerHTML =
+                    '<div class="empty-state">' +
+                        '<div class="empty-icon">📭</div>' +
+                        '<p>暂无收藏股票</p>' +
+                        '<p style="font-size:13px;">请在上方搜索并添加感兴趣的股票</p>' +
+                    '</div>';
+                return;
+            }
+
+            favList.innerHTML = favs.map(function (f, i) {
+                var added = f.added_at ? f.added_at.substring(0, 10) : '';
+                return (
+                    '<div class="fav-item">' +
+                        '<div class="fav-rank">' + (i + 1) + '</div>' +
+                        '<div class="fav-info">' +
+                            '<div class="fav-name">' + f.stock_name + '</div>' +
+                            '<div class="fav-code">' + f.stock_code +
+                                (f.stock_code.startsWith('60') || f.stock_code.startsWith('68') ? ' · 沪市' : ' · 深市') +
+                            '</div>' +
+                            (added ? '<div class="fav-added">添加于 ' + added + '</div>' : '') +
+                        '</div>' +
+                        '<a class="btn-analyze" href="/?analyze=' +
+                            encodeURIComponent(f.stock_name) + '">🔍 分析</a>' +
+                        '<button class="btn-delete" onclick="deleteFavorite(' + f.id + ')">🗑 删除</button>' +
+                    '</div>'
+                );
+            }).join('');
+        }
+
+        // ============ 搜索 ============
+        addInput.addEventListener('input', function () {
+            const kw = this.value.trim();
+            if (!kw) { dropdown.classList.remove('active'); return; }
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(function () { searchStock(kw); }, 300);
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!dropdown.contains(e.target) && e.target !== addInput) {
+                dropdown.classList.remove('active');
+            }
+        });
+
+        async function searchStock(keyword) {
+            if (keyword.length < 1) return;
+            try {
+                const resp = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keyword: keyword }),
+                });
+                const data = await resp.json();
+                if (data.error) {
+                    dropdown.innerHTML =
+                        '<div class="dropdown-item" style="color:#fca5a5">' + data.error + '</div>';
+                    dropdown.classList.add('active');
+                    return;
+                }
+                renderDropdown(data.stocks);
+            } catch (e) {
+                dropdown.innerHTML =
+                    '<div class="dropdown-item" style="color:#fca5a5">搜索失败，请重试</div>';
+                dropdown.classList.add('active');
+            }
+        }
+
+        function renderDropdown(stocks) {
+            if (!stocks || stocks.length === 0) {
+                dropdown.innerHTML =
+                    '<div class="dropdown-item" style="color:#94a3b8">未找到匹配的股票</div>';
+                dropdown.classList.add('active');
+                return;
+            }
+            dropdown.innerHTML = stocks.map(function (s) {
+                var exchange = s.exchange || (s.ts_code && s.ts_code.endsWith('.SH') ? '沪市' : '深市');
+                var code = s.code || s.ts_code;
+                return (
+                    '<div class="dropdown-item" data-name="' + s.name + '" data-code="' + code + '">' +
+                        '<span class="sname">' + s.name + '</span>' +
+                        '<span class="sinfo">' + code + ' | ' + exchange + '</span>' +
+                    '</div>'
+                );
+            }).join('');
+
+            dropdown.classList.add('active');
+
+            dropdown.querySelectorAll('.dropdown-item').forEach(function (item) {
+                item.addEventListener('click', function () {
+                    selectedStock = { name: this.dataset.name, code: this.dataset.code };
+                    addInput.value = this.dataset.name;
+                    dropdown.classList.remove('active');
+                });
+            });
+        }
+
+        // ============ 添加收藏 ============
+        async function addFavorite() {
+            const name = addInput.value.trim();
+            if (!name) { showStatus('请先搜索并选择一只股票', true); return; }
+            if (!selectedStock || selectedStock.name !== name) {
+                showStatus('请从下拉列表中选择股票', true); return;
+            }
+
+            addBtn.disabled = true;
+            showStatus('正在添加...');
+            try {
+                // 提取纯代码
+                var code = selectedStock.code;
+                if (code.indexOf('.') > -1) code = code.split('.')[0];
+                code = code.replace(/^[sh]{2}/i, '');
+
+                const resp = await fetch('/api/favorites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stock_name: name, stock_code: code }),
+                });
+                const data = await resp.json();
+                if (data.error) {
+                    showStatus(data.error, true);
+                } else {
+                    showStatus(data.message);
+                    addInput.value = '';
+                    selectedStock = null;
+                    loadFavorites();
+                }
+            } catch (e) {
+                showStatus('添加失败: ' + e.message, true);
+            } finally {
+                addBtn.disabled = false;
+            }
+        }
+
+        // ============ 删除收藏 ============
+        async function deleteFavorite(id) {
+            if (!confirm('确定要移除该股票吗？')) return;
+            try {
+                const resp = await fetch('/api/favorites/' + id, { method: 'DELETE' });
+                const data = await resp.json();
+                showStatus(data.message || '已删除');
+                loadFavorites();
+            } catch (e) {
+                showStatus('删除失败: ' + e.message, true);
+            }
+        }
+
+        // ============ UI ============
+        function showStatus(msg, isError) {
+            statusBar.classList.add('active');
+            if (isError) statusBar.classList.add('error');
+            else statusBar.classList.remove('error');
+            statusText.textContent = msg;
+            setTimeout(function () {
+                statusBar.classList.remove('active', 'error');
+            }, 3000);
+        }
+
+        // ============ 键盘 ============
+        addInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                dropdown.classList.remove('active');
+                addFavorite();
+            }
+        });
+
+        // ============ 初始化 ============
+        loadFavorites();
+    </script>
+</body>
+</html>

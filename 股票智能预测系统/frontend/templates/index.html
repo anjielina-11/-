@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票智能预测系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --purple: #a78bfa;
+            --cyan: #22d3ee;
+            --radius: 12px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+                'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 24px 16px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 8px 0;
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        /* Nav */
+        .nav-row {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+        .nav-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: #1a2744;
+        }
+        .nav-btn.active {
+            background: #1a3a5c;
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .nav-btn .nav-badge {
+            display: inline-block;
+            min-width: 20px;
+            padding: 1px 6px;
+            background: var(--accent);
+            color: #fff;
+            border-radius: 10px;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        /* Search Card */
+        .search-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+        .search-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            position: relative;
+        }
+        .search-input-wrap {
+            flex: 1;
+            position: relative;
+        }
+        .search-input-wrap input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 16px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: #0f172a;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-input-wrap input:focus {
+            border-color: var(--accent);
+        }
+        .search-input-wrap input::placeholder {
+            color: #64748b;
+        }
+
+        /* Dropdown */
+        .dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        .dropdown.active {
+            display: block;
+        }
+        .dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+        .dropdown-item:hover {
+            background: #1a2744;
+        }
+        .dropdown-item .stock-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .dropdown-item .stock-info {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        /* Predict Button */
+        .btn-predict {
+            padding: 14px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+            background: var(--accent);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .btn-predict:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+        .btn-predict:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Status */
+        .status-bar {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: #1a2744;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #93c5fd;
+        }
+        .status-bar.active {
+            display: flex;
+        }
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid #334155;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Error */
+        .error-bar {
+            display: none;
+            padding: 12px 16px;
+            background: #3b1515;
+            border: 1px solid #7f1d1d;
+            border-radius: 10px;
+            color: #fca5a5;
+            font-size: 14px;
+        }
+        .error-bar.active {
+            display: block;
+        }
+
+        /* Chart Card */
+        .chart-card {
+            display: none;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+        .chart-card.active {
+            display: block;
+        }
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .chart-title .stock-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            background: #1a3a5c;
+            color: #60a5fa;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .chart-container {
+            width: 100%;
+            height: 480px;
+        }
+
+        /* Loss Chart */
+        .loss-chart-card {
+            display: none;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+        .loss-chart-card.active {
+            display: block;
+        }
+        .loss-chart-container {
+            width: 100%;
+            height: 280px;
+        }
+
+        /* Prediction Table */
+        .prediction-table {
+            display: none;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            box-shadow: var(--shadow);
+        }
+        .prediction-table.active {
+            display: block;
+        }
+        .prediction-table h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #a78bfa;
+        }
+        .prediction-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .prediction-table th,
+        .prediction-table td {
+            padding: 10px 16px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .prediction-table th {
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 13px;
+        }
+        .prediction-table td {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .prediction-table .pred-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #3b1f6e;
+            color: #a78bfa;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 6px;
+        }
+        .trend-up {
+            color: var(--success);
+        }
+        .trend-down {
+            color: var(--danger);
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .search-row {
+                flex-direction: column;
+            }
+            .btn-predict {
+                width: 100%;
+            }
+            .chart-container {
+                height: 340px;
+            }
+        }
+
+        /* ====== 模型信息面板 ====== */
+        .model-info-card {
+            display: none;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+        .model-info-card.active {
+            display: block;
+        }
+
+        .model-info-card .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* KPI 指标磁贴行 */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .kpi-tile {
+            background: linear-gradient(135deg, #1a2744 0%, #162032 100%);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px 18px;
+            text-align: center;
+            transition: transform 0.15s;
+        }
+        .kpi-tile:hover {
+            transform: translateY(-2px);
+        }
+        .kpi-tile .kpi-value {
+            font-size: 26px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+        }
+        .kpi-tile .kpi-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .kpi-tile.accent  .kpi-value { color: var(--accent); }
+        .kpi-tile.success .kpi-value { color: var(--success); }
+        .kpi-tile.warning .kpi-value { color: var(--warning); }
+        .kpi-tile.purple  .kpi-value { color: var(--purple); }
+        .kpi-tile.cyan    .kpi-value { color: var(--cyan); }
+
+        /* 参数网格 */
+        .param-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .param-group {
+            background: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 18px;
+        }
+        .param-group h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .param-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            font-size: 13px;
+        }
+        .param-row .param-key {
+            color: var(--text-secondary);
+        }
+        .param-row .param-val {
+            font-weight: 600;
+            font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+            font-size: 12px;
+            color: var(--text);
+            background: #1e293b;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .param-row .param-val.highlight {
+            color: var(--accent);
+        }
+
+        /* 分隔线 */
+        .section-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 20px 0;
+        }
+
+        /* ====== AI 分析面板 ====== */
+        .ai-analysis-card {
+            display: none;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+        .ai-analysis-card.active {
+            display: block;
+        }
+        .ai-analysis-card .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .ai-analysis-card .ai-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            background: linear-gradient(135deg, #3b1f6e, #1a3a5c);
+            color: #a78bfa;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .ai-content {
+            font-size: 14px;
+            line-height: 1.85;
+            color: #cbd5e1;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .ai-content h1, .ai-content h2, .ai-content h3 {
+            color: var(--text);
+            margin: 16px 0 8px;
+        }
+        .ai-content h2 { font-size: 17px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+        .ai-content h3 { font-size: 15px; color: #a78bfa; }
+        .ai-content strong { color: #e2e8f0; }
+        .ai-content ul, .ai-content ol { padding-left: 20px; margin: 8px 0; }
+        .ai-content li { margin: 4px 0; }
+        .ai-content code {
+            background: #0f172a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #22d3ee;
+        }
+        .ai-loading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+            color: #a78bfa;
+            font-size: 14px;
+        }
+        .ai-loading .spinner {
+            border-top-color: #a78bfa;
+        }
+        .ai-error {
+            color: #fca5a5;
+            padding: 12px;
+            background: #3b1515;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📈 股票智能预测系统</h1>
+            <p>基于 Transformer 深度学习模型 · 中国A股未来5日收盘价预测</p>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav-row">
+            <a href="/" class="nav-btn active">🏠 主页</a>
+            <a href="/favorites" class="nav-btn" id="navFavBtn">
+                ⭐ 我的收藏 <span class="nav-badge" id="favCount">0</span>
+            </a>
+        </div>
+
+        <!-- Search Card -->
+        <div class="search-card">
+            <div class="search-row">
+                <div class="search-input-wrap">
+                    <input
+                        type="text"
+                        id="stockInput"
+                        placeholder="请输入A股股票名称，例如：平安银行、贵州茅台..."
+                        autocomplete="off"
+                    />
+                    <div class="dropdown" id="dropdown"></div>
+                </div>
+                <button class="btn-predict" id="predictBtn" onclick="startPrediction()">
+                    🔍 开始预测
+                </button>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar" id="statusBar">
+            <div class="spinner"></div>
+            <span id="statusText">正在加载...</span>
+        </div>
+
+        <!-- Error Bar -->
+        <div class="error-bar" id="errorBar"></div>
+
+        <!-- Chart -->
+        <div class="chart-card" id="chartCard">
+            <div class="chart-title">
+                收盘价走势与预测
+                <span class="stock-badge" id="stockBadge"></span>
+            </div>
+            <div class="chart-container" id="mainChart"></div>
+        </div>
+
+        <!-- Model Info Card -->
+        <div class="model-info-card" id="modelInfoCard">
+            <div class="section-title" style="color:#22d3ee;">🧠 模型信息与训练报告</div>
+
+            <!-- KPI 指标 -->
+            <div class="kpi-row" id="kpiRow"></div>
+
+            <!-- 参数详情 -->
+            <div class="param-grid" id="paramGrid"></div>
+        </div>
+
+        <!-- Prediction Table -->
+        <div class="prediction-table" id="predictionTable">
+            <h3>🔮 未来5个交易日预测结果</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>预测收盘价</th>
+                        <th>较前一日变化</th>
+                    </tr>
+                </thead>
+                <tbody id="predictionTableBody"></tbody>
+            </table>
+        </div>
+
+        <!-- Training Loss Chart -->
+        <div class="loss-chart-card" id="lossCard">
+            <div class="chart-title">📉 模型训练损失曲线</div>
+            <div class="loss-chart-container" id="lossChart"></div>
+        </div>
+
+        <!-- AI Analysis Card -->
+        <div class="ai-analysis-card" id="aiAnalysisCard">
+            <div class="ai-header">
+                <span style="font-size:20px;">🤖</span>
+                <span style="font-size:18px;font-weight:600;">DeepSeek AI 分析报告</span>
+                <span class="ai-badge">大模型驱动</span>
+            </div>
+            <div id="aiContent">
+                <div class="ai-loading">
+                    <div class="spinner"></div>
+                    <span>正在调用 DeepSeek 大模型进行分析...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ 全局状态 ============
+        let selectedStock = null;
+        let searchTimer = null;
+
+        // ============ DOM 元素 ============
+        const stockInput = document.getElementById('stockInput');
+        const dropdown = document.getElementById('dropdown');
+        const predictBtn = document.getElementById('predictBtn');
+        const statusBar = document.getElementById('statusBar');
+        const statusText = document.getElementById('statusText');
+        const errorBar = document.getElementById('errorBar');
+        const chartCard = document.getElementById('chartCard');
+        const stockBadge = document.getElementById('stockBadge');
+        const predictionTable = document.getElementById('predictionTable');
+        const predictionTableBody = document.getElementById('predictionTableBody');
+        const lossCard = document.getElementById('lossCard');
+        const modelInfoCard = document.getElementById('modelInfoCard');
+        const aiAnalysisCard = document.getElementById('aiAnalysisCard');
+        const aiContent = document.getElementById('aiContent');
+
+        // ============ ECharts 实例 ============
+        let mainChartInstance = null;
+        let lossChartInstance = null;
+
+        function getMainChart() {
+            const dom = document.getElementById('mainChart');
+            if (!mainChartInstance) {
+                mainChartInstance = echarts.init(dom);
+                window.addEventListener('resize', () => mainChartInstance.resize());
+            }
+            return mainChartInstance;
+        }
+
+        function getLossChart() {
+            const dom = document.getElementById('lossChart');
+            if (!lossChartInstance) {
+                lossChartInstance = echarts.init(dom);
+                window.addEventListener('resize', () => lossChartInstance.resize());
+            }
+            return lossChartInstance;
+        }
+
+        // ============ 股票搜索 ============
+        stockInput.addEventListener('input', function () {
+            const keyword = this.value.trim();
+            if (!keyword) {
+                dropdown.classList.remove('active');
+                return;
+            }
+
+            // 防抖 300ms
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => searchStock(keyword), 300);
+        });
+
+        // 点击外部关闭下拉
+        document.addEventListener('click', function (e) {
+            if (!dropdown.contains(e.target) && e.target !== stockInput) {
+                dropdown.classList.remove('active');
+            }
+        });
+
+        async function searchStock(keyword) {
+            if (keyword.length < 1) return;
+            try {
+                const resp = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keyword }),
+                });
+                const data = await resp.json();
+                if (data.error) {
+                    dropdown.innerHTML =
+                        '<div class="dropdown-item" style="color:#fca5a5">' +
+                        data.error + '</div>';
+                    dropdown.classList.add('active');
+                    return;
+                }
+                renderDropdown(data.stocks);
+            } catch (err) {
+                dropdown.innerHTML =
+                    '<div class="dropdown-item" style="color:#fca5a5">搜索失败，请重试</div>';
+                dropdown.classList.add('active');
+            }
+        }
+
+        function renderDropdown(stocks) {
+            if (!stocks || stocks.length === 0) {
+                dropdown.innerHTML =
+                    '<div class="dropdown-item" style="color:#94a3b8">未找到匹配的股票</div>';
+                dropdown.classList.add('active');
+                return;
+            }
+
+            dropdown.innerHTML = stocks
+                .map(function (s) {
+                    let exchange = s.ts_code.endsWith('.SH') ? '沪市' : '深市';
+                    return (
+                        '<div class="dropdown-item" data-name="' +
+                        s.name +
+                        '" data-code="' +
+                        s.ts_code +
+                        '">' +
+                        '<span class="stock-name">' +
+                        s.name +
+                        '</span>' +
+                        '<span class="stock-info">' +
+                        s.ts_code +
+                        ' | ' +
+                        exchange +
+                        (s.industry ? ' | ' + s.industry : '') +
+                        '</span>' +
+                        '</div>'
+                    );
+                })
+                .join('');
+
+            dropdown.classList.add('active');
+
+            // 点击选择
+            dropdown.querySelectorAll('.dropdown-item').forEach(function (item) {
+                item.addEventListener('click', function () {
+                    const name = this.dataset.name;
+                    const code = this.dataset.code;
+                    selectedStock = { name, code };
+                    stockInput.value = name;
+                    dropdown.classList.remove('active');
+                });
+            });
+        }
+
+        // ============ 预测流程 ============
+        async function startPrediction() {
+            const stockName = stockInput.value.trim();
+            if (!stockName) {
+                showError('请先输入并选择一只股票');
+                return;
+            }
+
+            // 如果输入的名字和选中不一致，尝试直接用输入的名字
+            if (!selectedStock || selectedStock.name !== stockName) {
+                selectedStock = { name: stockName, code: null };
+            }
+
+            // 重置界面
+            hideAll();
+            showStatus('正在获取数据并训练 Transformer 模型，请耐心等待...');
+            predictBtn.disabled = true;
+
+            try {
+                const resp = await fetch('/api/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stock_name: stockName }),
+                });
+                const data = await resp.json();
+
+                if (data.error) {
+                    showError(data.error);
+                    predictBtn.disabled = false;
+                    return;
+                }
+
+                // 渲染结果
+                stockBadge.textContent = data.stock_name + ' (' + data.stock_code + ')';
+                renderMainChart(data);
+                renderModelInfo(data.model_info);
+                renderPredictionTable(data);
+                renderLossChart(data.training_info);
+                hideStatus();
+
+                // 触发 AI 分析
+                fetchAIAnalysis(data);
+            } catch (err) {
+                showError('请求失败: ' + err.message);
+            } finally {
+                predictBtn.disabled = false;
+            }
+        }
+
+        // ============ 渲染主图表 ============
+        function renderMainChart(data) {
+            chartCard.classList.add('active');
+            const chart = getMainChart();
+
+            // 格式化日期为 "MM月DD日"
+            function fmtDate(dateStr) {
+                const m = dateStr.substring(4, 6);
+                const d = dateStr.substring(6, 8);
+                return m + '月' + d + '日';
+            }
+
+            const historicalDates = data.historical.map(function (h) {
+                return fmtDate(h.date);
+            });
+            const historicalValues = data.historical.map(function (h) {
+                return h.close;
+            });
+
+            const predictedDates = data.predicted.map(function (p) {
+                return fmtDate(p.date);
+            });
+            const predictedValues = data.predicted.map(function (p) {
+                return p.close;
+            });
+
+            // 连接点：最后的历史价格 + 第一个预测价格
+            const allDates = historicalDates.concat(predictedDates);
+            const allHistoricalVals = historicalValues.concat([historicalValues[historicalValues.length - 1]]);
+            // 用于虚线的连接
+            const connectorDates = [historicalDates[historicalDates.length - 1], predictedDates[0]];
+            const connectorValues = [historicalValues[historicalValues.length - 1], predictedValues[0]];
+
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#1e293b',
+                    borderColor: '#334155',
+                    textStyle: { color: '#e2e8f0', fontSize: 13 },
+                    formatter: function (params) {
+                        let html = '<b>' + params[0].axisValue + '</b><br/>';
+                        params.forEach(function (p) {
+                            if (p.value !== null && p.value !== '-') {
+                                html +=
+                                    p.marker +
+                                    ' ' +
+                                    p.seriesName +
+                                    ': <b>¥' +
+                                    p.value.toFixed(2) +
+                                    '</b><br/>';
+                            }
+                        });
+                        return html;
+                    },
+                },
+                legend: {
+                    data: ['历史收盘价', '预测收盘价'],
+                    bottom: 8,
+                    textStyle: { color: '#94a3b8', fontSize: 13 },
+                },
+                grid: {
+                    left: '8%',
+                    right: '8%',
+                    top: '10%',
+                    bottom: '14%',
+                },
+                xAxis: {
+                    type: 'category',
+                    data: allDates,
+                    boundaryGap: false,
+                    axisLine: { lineStyle: { color: '#334155' } },
+                    axisTick: { show: false },
+                    axisLabel: {
+                        color: '#94a3b8',
+                        fontSize: 11,
+                        rotate: allDates.length > 30 ? 45 : 0,
+                        interval: Math.floor(allDates.length / 10) || 0,
+                    },
+                    splitLine: { show: false },
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '收盘价 (元)',
+                    nameTextStyle: { color: '#94a3b8', fontSize: 12 },
+                    axisLabel: {
+                        color: '#94a3b8',
+                        formatter: '¥{value}',
+                    },
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    splitLine: { lineStyle: { color: '#1e293b' } },
+                    scale: true,
+                },
+                series: [
+                    {
+                        name: '历史收盘价',
+                        type: 'line',
+                        data: historicalValues,
+                        smooth: true,
+                        symbol: 'none',
+                        lineStyle: {
+                            color: '#60a5fa',
+                            width: 2.5,
+                        },
+                        itemStyle: { color: '#60a5fa' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(96, 165, 250, 0.2)' },
+                                { offset: 1, color: 'rgba(96, 165, 250, 0.01)' },
+                            ]),
+                        },
+                    },
+                    {
+                        name: '预测收盘价',
+                        type: 'line',
+                        data: (function () {
+                            // 最后的历史点作为重合点
+                            const result = new Array(historicalDates.length + 1).fill(null);
+                            // 先在 historical 最后位置放一个点（锚点）
+                            result[historicalDates.length - 1] = historicalValues[historicalValues.length - 1];
+                            // 再放预测值
+                            for (let i = 0; i < predictedValues.length; i++) {
+                                result[historicalDates.length + i] = predictedValues[i];
+                            }
+                            return result;
+                        })(),
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 8,
+                        lineStyle: {
+                            color: '#a78bfa',
+                            width: 2.5,
+                            type: 'dashed',
+                        },
+                        itemStyle: { color: '#a78bfa' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(167, 139, 250, 0.25)' },
+                                { offset: 1, color: 'rgba(167, 139, 250, 0.01)' },
+                            ]),
+                        },
+                        markLine: {
+                            silent: true,
+                            symbol: 'none',
+                            lineStyle: {
+                                color: '#f59e0b',
+                                type: 'dashed',
+                                width: 1,
+                            },
+                            label: {
+                                color: '#f59e0b',
+                                fontSize: 11,
+                                formatter: '预测起点',
+                            },
+                            data: [
+                                {
+                                    xAxis: historicalDates.length - 1,
+                                },
+                            ],
+                        },
+                    },
+                ],
+            };
+
+            chart.setOption(option, true);
+        }
+
+        // ============ 渲染预测表格 ============
+        function renderPredictionTable(data) {
+            predictionTable.classList.add('active');
+            const predicted = data.predicted;
+
+            function fmtDate(dateStr) {
+                const m = dateStr.substring(4, 6);
+                const d = dateStr.substring(6, 8);
+                return m + '月' + d + '日';
+            }
+
+            // 前一日价格（从历史数据最后一个）
+            let prevPrice = data.historical[data.historical.length - 1].close;
+
+            let html = '';
+            predicted.forEach(function (p, i) {
+                const change = p.close - prevPrice;
+                const changePercent = ((change / prevPrice) * 100).toFixed(2);
+                const trendClass = change >= 0 ? 'trend-up' : 'trend-down';
+                const arrow = change >= 0 ? '▲' : '▼';
+
+                html +=
+                    '<tr>' +
+                    '<td>' +
+                    fmtDate(p.date) +
+                    '<span class="pred-tag">预测</span></td>' +
+                    '<td style="color:#a78bfa">¥' +
+                    p.close.toFixed(2) +
+                    '</td>' +
+                    '<td class="' + trendClass + '">' +
+                    arrow + ' ' + (change >= 0 ? '+' : '') + change.toFixed(2) +
+                    ' (' + (changePercent >= 0 ? '+' : '') + changePercent + '%)' +
+                    '</td>' +
+                    '</tr>';
+
+                prevPrice = p.close;
+            });
+
+            predictionTableBody.innerHTML = html;
+        }
+
+        // ============ 渲染训练损失曲线 ============
+        function renderLossChart(trainingInfo) {
+            if (!trainingInfo || !trainingInfo.train_losses || trainingInfo.train_losses.length === 0) {
+                return;
+            }
+            lossCard.classList.add('active');
+            const chart = getLossChart();
+
+            const epochs = [];
+            for (let i = 0; i < trainingInfo.train_losses.length; i++) {
+                epochs.push(i + 1);
+            }
+
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#1e293b',
+                    borderColor: '#334155',
+                    textStyle: { color: '#e2e8f0' },
+                },
+                legend: {
+                    data: ['训练损失', '验证损失'],
+                    bottom: 8,
+                    textStyle: { color: '#94a3b8', fontSize: 12 },
+                },
+                grid: {
+                    left: '8%',
+                    right: '6%',
+                    top: '10%',
+                    bottom: '16%',
+                },
+                xAxis: {
+                    type: 'category',
+                    data: epochs,
+                    name: 'Epoch',
+                    nameTextStyle: { color: '#94a3b8' },
+                    axisLabel: { color: '#94a3b8', fontSize: 10, interval: Math.floor(epochs.length / 8) || 0 },
+                    axisLine: { lineStyle: { color: '#334155' } },
+                    splitLine: { show: false },
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'MSE Loss',
+                    nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+                    axisLabel: { color: '#94a3b8', fontSize: 10 },
+                    splitLine: { lineStyle: { color: '#1e293b' } },
+                },
+                series: [
+                    {
+                        name: '训练损失',
+                        type: 'line',
+                        data: trainingInfo.train_losses,
+                        smooth: true,
+                        symbol: 'none',
+                        lineStyle: { color: '#60a5fa', width: 1.5 },
+                    },
+                    {
+                        name: '验证损失',
+                        type: 'line',
+                        data: trainingInfo.val_losses || [],
+                        smooth: true,
+                        symbol: 'none',
+                        lineStyle: { color: '#f59e0b', width: 1.5 },
+                    },
+                ],
+            };
+
+            chart.setOption(option, true);
+        }
+
+        // ============ AI 分析 ============
+        async function fetchAIAnalysis(data) {
+            aiAnalysisCard.classList.add('active');
+            aiContent.innerHTML =
+                '<div class="ai-loading">' +
+                    '<div class="spinner"></div>' +
+                    '<span>正在调用 DeepSeek 大模型进行分析...</span>' +
+                '</div>';
+
+            try {
+                const resp = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        stock_name: data.stock_name,
+                        stock_code: data.stock_code,
+                        predicted: data.predicted,
+                        historical: data.historical,
+                    }),
+                });
+                const result = await resp.json();
+
+                if (result.error) {
+                    aiContent.innerHTML =
+                        '<div class="ai-error">⚠️ ' + result.error + '</div>';
+                    return;
+                }
+
+                // 将 Markdown 风格的文本转为 HTML
+                let html = result.analysis
+                    // 标题
+                    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                    .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+                    // 粗体
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    // 列表项
+                    .replace(/^- (.+)$/gm, '<li>$1</li>')
+                    .replace(/^(\d+)[\.、] (.+)$/gm, '<li>$2</li>')
+                    // 代码块
+                    .replace(/`([^`]+)`/g, '<code>$1</code>')
+                    // 段落间距
+                    .replace(/\n\n/g, '<br/><br/>');
+
+                // 包裹连续 li
+                html = html.replace(
+                    /(<li>.*<\/li>)\n(?=<li>)/g, '$1'
+                );
+                html = html.replace(
+                    /((?:<li>.*<\/li>\n?)+)/g,
+                    '<ul>$1</ul>'
+                );
+
+                aiContent.innerHTML = '<div class="ai-content">' + html + '</div>';
+            } catch (err) {
+                aiContent.innerHTML =
+                    '<div class="ai-error">⚠️ AI 分析请求失败: ' + err.message + '</div>';
+            }
+        }
+
+        // ============ 渲染模型信息面板 ============
+        function renderModelInfo(modelInfo) {
+            if (!modelInfo) return;
+            const card = document.getElementById('modelInfoCard');
+            card.classList.add('active');
+
+            // --- KPI 磁贴 ---
+            const metrics = modelInfo.metrics;
+            const complexity = modelInfo.complexity;
+            const dataStats = modelInfo.data_stats;
+
+            const kpiHtml =
+                '<div class="kpi-tile accent">' +
+                    '<div class="kpi-value">' + (metrics.epochs || '-') + '</div>' +
+                    '<div class="kpi-label">训练轮数 (Epochs)</div>' +
+                '</div>' +
+                '<div class="kpi-tile success">' +
+                    '<div class="kpi-value">' + (metrics.final_train_loss != null ? metrics.final_train_loss.toFixed(6) : '-') + '</div>' +
+                    '<div class="kpi-label">最终训练损失 (MSE)</div>' +
+                '</div>' +
+                '<div class="kpi-tile warning">' +
+                    '<div class="kpi-value">' + (metrics.final_val_loss != null ? metrics.final_val_loss.toFixed(6) : '-') + '</div>' +
+                    '<div class="kpi-label">最终验证损失 (MSE)</div>' +
+                '</div>' +
+                '<div class="kpi-tile purple">' +
+                    '<div class="kpi-value">' + (complexity ? (complexity.total_params / 1000).toFixed(1) + 'K' : '-') + '</div>' +
+                    '<div class="kpi-label">模型参数量 (Total)</div>' +
+                '</div>' +
+                '<div class="kpi-tile cyan">' +
+                    '<div class="kpi-value">' + (metrics.train_time_sec != null ? metrics.train_time_sec.toFixed(1) + 's' : '-') + '</div>' +
+                    '<div class="kpi-label">训练耗时</div>' +
+                '</div>';
+
+            document.getElementById('kpiRow').innerHTML = kpiHtml;
+
+            // --- 参数详情网格 ---
+            const arch = modelInfo.architecture || {};
+            const config = modelInfo.training_config || {};
+
+            function paramRow(key, val, highlight) {
+                var cls = highlight ? 'param-val highlight' : 'param-val';
+                return '<div class="param-row">' +
+                    '<span class="param-key">' + key + '</span>' +
+                    '<span class="' + cls + '">' + val + '</span>' +
+                    '</div>';
+            }
+
+            var gridHtml = '';
+
+            // 模型架构
+            gridHtml += '<div class="param-group">' +
+                '<h4>🏗️ 模型架构 (Architecture)</h4>' +
+                paramRow('模型类型', arch.model_type || '-') +
+                paramRow('输入序列长度', arch.input_length + ' 个交易日') +
+                paramRow('输出预测长度', arch.output_length + ' 个交易日') +
+                paramRow('嵌入维度 (d_model)', arch.d_model) +
+                paramRow('注意力头数 (nhead)', arch.attention_heads) +
+                paramRow('编码器层数', arch.encoder_layers) +
+                paramRow('前馈维度 (d_ff)', arch.feedforward_dim) +
+                paramRow('Dropout', arch.dropout) +
+                paramRow('位置编码', arch.positional_encoding || '-') +
+                '</div>';
+
+            // 训练配置
+            gridHtml += '<div class="param-group">' +
+                '<h4>⚙️ 训练配置 (Training Config)</h4>' +
+                paramRow('优化器', config.optimizer || '-') +
+                paramRow('学习率', config.learning_rate) +
+                paramRow('损失函数', config.loss_function || '-') +
+                paramRow('学习率调度器', config.scheduler || '-') +
+                paramRow('梯度裁剪 (max_norm)', config.gradient_clip_norm) +
+                paramRow('训练/验证集划分', config.train_val_split || '-') +
+                paramRow('数据归一化', config.scaler || '-') +
+                '</div>';
+
+            // 模型复杂度
+            gridHtml += '<div class="param-group">' +
+                '<h4>📊 模型复杂度 (Complexity)</h4>' +
+                paramRow('总参数量', (complexity.total_params || 0).toLocaleString(), true) +
+                paramRow('可训练参数量', (complexity.trainable_params || 0).toLocaleString(), true) +
+                paramRow('计算设备', (complexity.device || '-').toUpperCase()) +
+                '</div>';
+
+            // 数据统计
+            gridHtml += '<div class="param-group">' +
+                '<h4>📦 数据统计 (Data Stats)</h4>' +
+                paramRow('训练样本总数', (dataStats.total_samples || 0).toLocaleString()) +
+                paramRow('训练集样本', (dataStats.train_samples || 0).toLocaleString()) +
+                paramRow('验证集样本', (dataStats.val_samples || 0).toLocaleString()) +
+                paramRow('原始数据点数', (dataStats.raw_data_points || 0).toLocaleString()) +
+                paramRow('数据时间范围', dataStats.data_period || '-') +
+                paramRow('数据获取耗时', (dataStats.fetch_time_sec || 0) + 's') +
+                '</div>';
+
+            document.getElementById('paramGrid').innerHTML = gridHtml;
+        }
+
+        // ============ UI 辅助 ============
+        function showStatus(msg) {
+            statusBar.classList.add('active');
+            statusText.textContent = msg;
+        }
+
+        function hideStatus() {
+            statusBar.classList.remove('active');
+        }
+
+        function showError(msg) {
+            hideStatus();
+            errorBar.textContent = '❌ ' + msg;
+            errorBar.classList.add('active');
+            setTimeout(function () {
+                errorBar.classList.remove('active');
+            }, 8000);
+        }
+
+        function hideAll() {
+            chartCard.classList.remove('active');
+            modelInfoCard.classList.remove('active');
+            predictionTable.classList.remove('active');
+            lossCard.classList.remove('active');
+            aiAnalysisCard.classList.remove('active');
+            errorBar.classList.remove('active');
+        }
+
+        // ============ 键盘快捷键 ============
+        stockInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                dropdown.classList.remove('active');
+                startPrediction();
+            }
+        });
+
+        // ============ 初始化 ============
+        (async function init() {
+            // 加载收藏数量
+            try {
+                const resp = await fetch('/api/favorites');
+                const data = await resp.json();
+                if (data.favorites) {
+                    document.getElementById('favCount').textContent = data.favorites.length;
+                }
+            } catch (e) { /* ignore */ }
+
+            // 检查 URL 参数，支持从收藏页跳转自动分析
+            const params = new URLSearchParams(window.location.search);
+            const analyzeStock = params.get('analyze');
+            if (analyzeStock) {
+                stockInput.value = decodeURIComponent(analyzeStock);
+                selectedStock = { name: decodeURIComponent(analyzeStock), code: null };
+                // 清理 URL 参数，避免刷新重复分析
+                window.history.replaceState({}, document.title, '/');
+                // 自动开始预测
+                startPrediction();
+            }
+        })();
+    </script>
+</body>
+</html>

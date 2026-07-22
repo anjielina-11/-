@@ -1,0 +1,69 @@
+2026-07-14 15:22:30 [scrapy.utils.log] INFO: Scrapy 2.17.0 started (bot: ctrip_hotel)
+2026-07-14 15:22:30 [scrapy.utils.log] INFO: Versions:
+{'lxml': '6.1.1',
+ 'libxml2': '2.11.9',
+ 'cssselect': '1.4.0',
+ 'parsel': '1.11.0',
+ 'w3lib': '2.4.1',
+ 'Twisted': '26.4.0',
+ 'Python': '3.14.6 (tags/v3.14.6:c63aec6, Jun 10 2026, 10:26:10) [MSC v.1944 '
+           '64 bit (AMD64)]',
+ 'pyOpenSSL': '26.3.0 (OpenSSL 4.0.1 9 Jun 2026)',
+ 'cryptography': '49.0.0',
+ 'Platform': 'Windows-11-10.0.26200-SP0'}
+2026-07-14 15:22:30 [scrapy.addons] INFO: Enabled addons:
+[]
+2026-07-14 15:22:30 [scrapy.middleware] INFO: Enabled extensions:
+['scrapy.extensions.corestats.CoreStats',
+ 'scrapy.extensions.logcount.LogCount',
+ 'scrapy.extensions.feedexport.FeedExporter']
+2026-07-14 15:22:30 [scrapy.crawler] INFO: Overridden settings:
+{'BOT_NAME': 'ctrip_hotel',
+ 'CONCURRENT_REQUESTS': 1,
+ 'CONCURRENT_REQUESTS_PER_DOMAIN': 1,
+ 'DOWNLOAD_TIMEOUT': 60,
+ 'FEED_EXPORT_ENCODING': 'utf-8-sig',
+ 'LOG_FILE': 'output/spider.log',
+ 'LOG_LEVEL': 'INFO',
+ 'MEMUSAGE_LIMIT_MB': 1024,
+ 'NEWSPIDER_MODULE': 'ctrip_hotel.spiders',
+ 'RETRY_ENABLED': False,
+ 'RETRY_TIMES': 1,
+ 'SPIDER_MODULES': ['ctrip_hotel.spiders'],
+ 'TELNETCONSOLE_ENABLED': False}
+2026-07-14 15:22:30 [scrapy.middleware] INFO: Enabled downloader middlewares:
+['scrapy.downloadermiddlewares.offsite.OffsiteMiddleware',
+ 'ctrip_hotel.middlewares.CtripCookieMiddleware',
+ 'ctrip_hotel.middlewares.CtripSeleniumMiddleware',
+ 'scrapy.downloadermiddlewares.httpauth.HttpAuthMiddleware',
+ 'scrapy.downloadermiddlewares.downloadtimeout.DownloadTimeoutMiddleware',
+ 'scrapy.downloadermiddlewares.defaultheaders.DefaultHeadersMiddleware',
+ 'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware',
+ 'scrapy.downloadermiddlewares.redirect.MetaRefreshMiddleware',
+ 'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware',
+ 'scrapy.downloadermiddlewares.redirect.RedirectMiddleware',
+ 'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware',
+ 'scrapy.downloadermiddlewares.stats.DownloaderStats']
+2026-07-14 15:22:30 [py.warnings] WARNING: C:\Users\wangy\AppData\Roaming\Python\Python314\site-packages\scrapy\core\downloader\middleware.py:46: ScrapyDeprecationWarning: CtripCookieMiddleware.process_request() requires a spider argument, this is deprecated and the argument will not be passed in future Scrapy versions. If you need to access the spider instance you can save the crawler instance passed to from_crawler() and use its spider attribute.
+  self._check_mw_method_spider_arg(mw.process_request)
+
+2026-07-14 15:22:30 [py.warnings] WARNING: C:\Users\wangy\AppData\Roaming\Python\Python314\site-packages\scrapy\core\downloader\middleware.py:46: ScrapyDeprecationWarning: CtripSeleniumMiddleware.process_request() requires a spider argument, this is deprecated and the argument will not be passed in future Scrapy versions. If you need to access the spider instance you can save the crawler instance passed to from_crawler() and use its spider attribute.
+  self._check_mw_method_spider_arg(mw.process_request)
+
+2026-07-14 15:22:30 [scrapy.middleware] INFO: Enabled spider middlewares:
+['scrapy.spidermiddlewares.start.StartSpiderMiddleware',
+ 'scrapy.spidermiddlewares.httperror.HttpErrorMiddleware',
+ 'scrapy.spidermiddlewares.referer.RefererMiddleware',
+ 'scrapy.spidermiddlewares.urllength.UrlLengthMiddleware',
+ 'scrapy.spidermiddlewares.depth.DepthMiddleware']
+2026-07-14 15:22:30 [scrapy.middleware] INFO: Enabled item pipelines:
+[]
+2026-07-14 15:22:30 [scrapy.core.engine] INFO: Spider opened
+2026-07-14 15:22:30 [scrapy.core.engine] INFO: Closing spider (finished)
+2026-07-14 15:22:30 [scrapy.statscollectors] INFO: Dumping Scrapy stats:
+{'elapsed_time_seconds': 0.0011149000056320801,
+ 'finish_reason': 'finished',
+ 'finish_time': datetime.datetime(2026, 7, 14, 7, 22, 30, 497216, tzinfo=datetime.timezone.utc),
+ 'log_count/INFO': 1,
+ 'start_time': datetime.datetime(2026, 7, 14, 7, 22, 30, 496100, tzinfo=datetime.timezone.utc)}
+2026-07-14 15:22:30 [scrapy.core.engine] INFO: Spider closed (finished)
