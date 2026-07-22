@@ -1,6 +1,8 @@
 package com.yunong.module.diagnosis.controller;
 
+import cn.hutool.core.text.CharSequenceUtil;
 import cn.hutool.crypto.digest.DigestUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yunong.common.PageResult;
@@ -8,6 +10,7 @@ import com.yunong.common.R;
 import com.yunong.config.MinioConfig;
 import com.yunong.exception.BusinessException;
 import com.yunong.exception.ErrorCode;
+import com.yunong.module.diagnosis.dto.DiagnosisResultResponse;
 import com.yunong.module.diagnosis.entity.DiagnosisRecord;
 import com.yunong.module.diagnosis.entity.Observation;
 import com.yunong.module.diagnosis.mapper.DiagnosisRecordMapper;
@@ -25,14 +28,16 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/diagnosis")
+@RequestMapping("/api/diagnosis")
 @RequiredArgsConstructor
 @Tag(name = "病害诊断", description = "图片上传、AI识别结果查询、人工审核")
 public class DiagnosisController {
@@ -111,7 +116,45 @@ public class DiagnosisController {
         if (diseaseName != null) wrapper.eq(DiagnosisRecord::getDiseaseName, diseaseName);
         wrapper.orderByDesc(DiagnosisRecord::getCreatedAt);
         var result = drMapper.selectPage(new Page<>(page, size), wrapper);
-        return R.ok(PageResult.of(result.getRecords(), result.getTotal(), page, size));
+        return R.ok(PageResult.of(result.getRecords(), result.getTotal()));
+    }
+
+    @GetMapping("/result/{taskId}")
+    @Operation(summary = "查询AI识别结果")
+    public R<DiagnosisResultResponse> getResult(@PathVariable String taskId) {
+        var dr = drMapper.selectById(taskId);
+        if (dr == null) throw new BusinessException(ErrorCode.DIAGNOSIS_NOT_FOUND);
+
+        String status;
+        if ("approved".equals(dr.getReviewStatus())) {
+            status = "completed";
+        } else if ("rejected".equals(dr.getReviewStatus())) {
+            status = "need_review";
+        } else {
+            status = "processing";
+        }
+
+        // 从 aiResult JSONB 中提取治疗建议和引用（AI 服务尚未接入时为 mock 数据）
+        String treatment = null;
+        java.util.List<DiagnosisResultResponse.Citation> citations = Collections.emptyList();
+        if (CharSequenceUtil.isNotBlank(dr.getAiResult())) {
+            try {
+                var aiJson = JSONUtil.parseObj(dr.getAiResult());
+                treatment = aiJson.getStr("treatment");
+                citations = aiJson.getJSONArray("citations")
+                        .toList(DiagnosisResultResponse.Citation.class);
+            } catch (Exception ignored) {
+                // aiResult 格式不兼容，返回空
+            }
+        }
+
+        return R.ok(new DiagnosisResultResponse(
+                status,
+                dr.getDiseaseName(),
+                dr.getConfidence() != null ? dr.getConfidence() : BigDecimal.ZERO,
+                treatment,
+                citations
+        ));
     }
 
     @PostMapping("/{id}/review")

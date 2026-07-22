@@ -5,8 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.Instant;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,10 +14,9 @@ public class R<T> {
     private int code;
     private String message;
     private T data;
-    private long timestamp;
 
     public static <T> R<T> ok(T data) {
-        return new R<>(200, "success", data, Instant.now().toEpochMilli());
+        return new R<>(0, null, data);
     }
 
     public static <T> R<T> ok() {
@@ -27,11 +24,11 @@ public class R<T> {
     }
 
     public static <T> R<T> fail(int code, String message) {
-        return new R<>(code, message, null, Instant.now().toEpochMilli());
+        return new R<>(code, message, null);
     }
 
     public static <T> R<T> fail(int code, String message, T data) {
-        return new R<>(code, message, data, Instant.now().toEpochMilli());
+        return new R<>(code, message, data);
     }
 
     public static <T> R<T> fail(String message) {

@@ -53,7 +53,7 @@ public class KnowledgeController {
                 .or().like(KnowledgeDocument::getContent, keyword));
         wrapper.orderByDesc(KnowledgeDocument::getCreatedAt);
         var result = kdMapper.selectPage(new Page<>(page, size), wrapper);
-        return R.ok(PageResult.of(result.getRecords(), result.getTotal(), page, size));
+        return R.ok(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
     @GetMapping("/documents/{id}")
@@ -91,6 +91,6 @@ public class KnowledgeController {
                         .or().like(KnowledgeDocument::getContent, q))
                 .orderByDesc(KnowledgeDocument::getCreatedAt);
         var result = kdMapper.selectPage(new Page<>(page, size), wrapper);
-        return R.ok(PageResult.of(result.getRecords(), result.getTotal(), page, size));
+        return R.ok(PageResult.of(result.getRecords(), result.getTotal()));
     }
 }

@@ -35,7 +35,7 @@ public class MarketController {
         if (marketName != null) wrapper.eq(MarketPrice::getMarketName, marketName);
         wrapper.orderByDesc(MarketPrice::getRecordedAt);
         var result = mpMapper.selectPage(new Page<>(page, size), wrapper);
-        return R.ok(PageResult.of(result.getRecords(), result.getTotal(), page, size));
+        return R.ok(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
     @GetMapping("/trend")

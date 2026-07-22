@@ -37,7 +37,7 @@ public class WeatherController {
         if (endDate != null) wrapper.le(WeatherRecord::getRecordedAt, LocalDateTime.parse(endDate));
         wrapper.orderByDesc(WeatherRecord::getRecordedAt);
         var result = wrMapper.selectPage(new Page<>(page, size), wrapper);
-        return R.ok(PageResult.of(result.getRecords(), result.getTotal(), page, size));
+        return R.ok(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
     @GetMapping("/trend")

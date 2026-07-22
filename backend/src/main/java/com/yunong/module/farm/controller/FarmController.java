@@ -6,6 +6,7 @@ import com.yunong.common.PageResult;
 import com.yunong.common.R;
 import com.yunong.exception.BusinessException;
 import com.yunong.exception.ErrorCode;
+import com.yunong.module.farm.dto.FieldDTO;
 import com.yunong.module.farm.entity.Farm;
 import com.yunong.module.farm.entity.Field;
 import com.yunong.module.farm.mapper.FarmMapper;
@@ -20,9 +21,10 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/v1/farms")
+@RequestMapping("/api/farms")
 @RequiredArgsConstructor
 @Tag(name = "农场管理", description = "农场和地块CRUD")
 public class FarmController {
@@ -48,7 +50,7 @@ public class FarmController {
                 .eq(Farm::getOwnerId, principal.getUsername())
                 .orderByDesc(Farm::getCreatedAt);
         var result = farmMapper.selectPage(new Page<>(page, size), wrapper);
-        return R.ok(PageResult.of(result.getRecords(), result.getTotal(), page, size));
+        return R.ok(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
     @GetMapping("/{id}")
@@ -84,9 +86,13 @@ public class FarmController {
 
     @GetMapping("/{farmId}/fields")
     @Operation(summary = "地块列表")
-    public R<List<Field>> listFields(@PathVariable String farmId) {
+    public R<PageResult<FieldDTO>> listFields(@PathVariable String farmId) {
         var fields = fieldMapper.selectList(new LambdaQueryWrapper<Field>()
                 .eq(Field::getFarmId, farmId).orderByDesc(Field::getCreatedAt));
-        return R.ok(fields);
+        // TODO: cropType 需关联 planting_cycles → crops 查询，暂时留空
+        List<FieldDTO> list = fields.stream()
+                .map(f -> FieldDTO.from(f, null))
+                .collect(Collectors.toList());
+        return R.ok(PageResult.of(list, list.size()));
     }
 }

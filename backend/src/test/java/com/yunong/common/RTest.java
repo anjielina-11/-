@@ -12,17 +12,16 @@ class RTest {
     @DisplayName("成功响应带数据")
     void okWithData() {
         var result = R.ok("hello");
-        assertThat(result.getCode()).isEqualTo(200);
-        assertThat(result.getMessage()).isEqualTo("success");
+        assertThat(result.getCode()).isEqualTo(0);
+        assertThat(result.getMessage()).isNull();
         assertThat(result.getData()).isEqualTo("hello");
-        assertThat(result.getTimestamp()).isPositive();
     }
 
     @Test
     @DisplayName("成功响应无数据")
     void okWithoutData() {
         var result = R.ok();
-        assertThat(result.getCode()).isEqualTo(200);
+        assertThat(result.getCode()).isEqualTo(0);
         assertThat(result.getData()).isNull();
     }
 

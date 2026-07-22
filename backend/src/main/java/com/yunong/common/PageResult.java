@@ -11,12 +11,10 @@ import java.util.List;
 @AllArgsConstructor
 public class PageResult<T> {
 
-    private List<T> records;
+    private List<T> list;
     private long total;
-    private long page;
-    private long size;
 
-    public static <T> PageResult<T> of(List<T> records, long total, long page, long size) {
-        return new PageResult<>(records, total, page, size);
+    public static <T> PageResult<T> of(List<T> list, long total) {
+        return new PageResult<>(list, total);
     }
 }

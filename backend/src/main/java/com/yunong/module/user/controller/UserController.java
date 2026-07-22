@@ -60,7 +60,7 @@ public class UserController {
         wrapper.orderByDesc(User::getCreatedAt);
         var result = userMapper.selectPage(new Page<>(page, size), wrapper);
         result.getRecords().forEach(u -> u.setPasswordHash(null));
-        return R.ok(PageResult.of(result.getRecords(), result.getTotal(), page, size));
+        return R.ok(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
     @GetMapping("/{id}")

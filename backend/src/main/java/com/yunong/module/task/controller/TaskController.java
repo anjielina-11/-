@@ -52,7 +52,7 @@ public class TaskController {
         if (taskType != null) wrapper.eq(FarmingTask::getTaskType, taskType);
         wrapper.orderByDesc(FarmingTask::getCreatedAt);
         var result = taskMapper.selectPage(new Page<>(page, size), wrapper);
-        return R.ok(PageResult.of(result.getRecords(), result.getTotal(), page, size));
+        return R.ok(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
     @PutMapping("/{id}")

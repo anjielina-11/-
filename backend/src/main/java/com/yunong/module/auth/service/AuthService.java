@@ -31,14 +31,12 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
 
     public LoginResponse login(LoginRequest request) {
-        // 用 Spring Security 认证
         var authToken = new UsernamePasswordAuthenticationToken(
                 request.getUsername(), request.getPassword());
         var authentication = authenticationManager.authenticate(authToken);
 
         var userDetails = (UserDetailsImpl) authentication.getPrincipal();
         String accessToken = jwtTokenProvider.generateAccessToken(authentication);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(userDetails.getUserId());
 
         // 更新最后登录时间
         var user = userMapper.selectById(userDetails.getUserId());
@@ -47,15 +45,11 @@ public class AuthService {
             userMapper.updateById(user);
         }
 
-        var userInfo = new LoginResponse.UserInfo(
-                userDetails.getUserId(),
+        return new LoginResponse(
+                accessToken,
                 userDetails.getUsername(),
-                user != null ? user.getRealName() : "",
-                userDetails.getRole(),
-                user != null ? user.getAvatarUrl() : null
+                normalizeRole(userDetails.getRole())
         );
-
-        return new LoginResponse(accessToken, refreshToken, "Bearer", 86400, userInfo);
     }
 
     @Transactional
@@ -90,10 +84,7 @@ public class AuthService {
         String accessToken = jwtTokenProvider.generateAccessToken(authentication);
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
 
-        var userInfo = new LoginResponse.UserInfo(
-                user.getId(), user.getUsername(), user.getRealName(), user.getRole(), null);
-
-        return new LoginResponse(accessToken, refreshToken, "Bearer", 86400, userInfo);
+        return new LoginResponse(accessToken, user.getUsername(), normalizeRole(user.getRole()));
     }
 
     public LoginResponse refresh(RefreshRequest request) {
@@ -119,10 +110,14 @@ public class AuthService {
 
         var auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
         String accessToken = jwtTokenProvider.generateAccessToken(auth);
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(userId);
+        jwtTokenProvider.generateRefreshToken(userId); // rotate refresh token
 
-        var userInfo = new LoginResponse.UserInfo(
-                user.getId(), user.getUsername(), user.getRealName(), user.getRole(), user.getAvatarUrl());
-        return new LoginResponse(accessToken, newRefreshToken, "Bearer", 86400, userInfo);
+        return new LoginResponse(accessToken, user.getUsername(), normalizeRole(user.getRole()));
+    }
+
+    /** 将 ROLE_FARMER → farmer, ROLE_TECHNICIAN → technician 等 */
+    private String normalizeRole(String role) {
+        if (role == null) return null;
+        return role.replace("ROLE_", "").toLowerCase();
     }
 }

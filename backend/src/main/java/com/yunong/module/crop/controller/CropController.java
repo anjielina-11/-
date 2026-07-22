@@ -46,7 +46,7 @@ public class CropController {
         if (category != null) wrapper.eq(Crop::getCategory, category);
         wrapper.orderByDesc(Crop::getCreatedAt);
         var result = cropMapper.selectPage(new Page<>(page, size), wrapper);
-        return R.ok(PageResult.of(result.getRecords(), result.getTotal(), page, size));
+        return R.ok(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
     @GetMapping("/crops/{id}")
@@ -80,7 +80,7 @@ public class CropController {
         if (status != null) wrapper.eq(PlantingCycle::getStatus, status);
         wrapper.orderByDesc(PlantingCycle::getCreatedAt);
         var result = cycleMapper.selectPage(new Page<>(page, size), wrapper);
-        return R.ok(PageResult.of(result.getRecords(), result.getTotal(), page, size));
+        return R.ok(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
     @PutMapping("/planting-cycles/{id}")
