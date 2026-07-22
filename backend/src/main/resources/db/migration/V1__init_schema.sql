@@ -21,9 +21,9 @@ CREATE TABLE users
     avatar_url    VARCHAR(500),
     farm_id       UUID,
     status        SMALLINT              DEFAULT 1,
-    last_login_at TIMESTAMPTZ,
-    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    last_login_at TIMESTAMP,
+    created_at    TIMESTAMP  NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMP  NOT NULL DEFAULT now(),
     deleted       SMALLINT              DEFAULT 0
 );
 CREATE UNIQUE INDEX uk_users_username ON users (username) WHERE deleted = 0;
@@ -40,8 +40,8 @@ CREATE TABLE farms
     location   GEOMETRY(Point, 4326),
     contact    VARCHAR(50),
     remark     TEXT,
-    created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    created_at TIMESTAMP  NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP  NOT NULL DEFAULT now(),
     deleted    SMALLINT              DEFAULT 0
 );
 CREATE INDEX idx_farms_owner ON farms (owner_id);
@@ -58,8 +58,8 @@ CREATE TABLE fields
     location   GEOMETRY(Point, 4326),
     boundary   GEOMETRY(Polygon, 4326),
     remark     TEXT,
-    created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    created_at TIMESTAMP  NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP  NOT NULL DEFAULT now(),
     deleted    SMALLINT              DEFAULT 0
 );
 CREATE INDEX idx_fields_farm ON fields (farm_id);
@@ -77,8 +77,8 @@ CREATE TABLE crops
     optimal_temp_max NUMERIC(4, 1),
     description      TEXT,
     image_url        VARCHAR(500),
-    created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    created_at       TIMESTAMP  NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMP  NOT NULL DEFAULT now(),
     deleted          SMALLINT              DEFAULT 0
 );
 
@@ -96,8 +96,8 @@ CREATE TABLE planting_cycles
     area_mu              NUMERIC(10, 2),
     remark               TEXT,
     created_by           UUID        NOT NULL REFERENCES users (id),
-    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at           TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMP NOT NULL DEFAULT now(),
     deleted              SMALLINT             DEFAULT 0
 );
 CREATE INDEX idx_pc_field ON planting_cycles (field_id);
@@ -114,10 +114,10 @@ CREATE TABLE observations
     description      TEXT,
     images           JSONB                DEFAULT '[]',
     location         GEOMETRY(Point, 4326),
-    observed_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    observed_at      TIMESTAMP NOT NULL DEFAULT now(),
     weather_info     JSONB,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at       TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMP NOT NULL DEFAULT now(),
     deleted          SMALLINT             DEFAULT 0
 );
 CREATE INDEX idx_obs_cycle ON observations (cycle_id);
@@ -139,12 +139,12 @@ CREATE TABLE diagnosis_records
     review_status    VARCHAR(20)  NOT NULL DEFAULT 'pending',
     review_comment   TEXT,
     reviewer_id      UUID REFERENCES users (id),
-    reviewed_at      TIMESTAMPTZ,
+    reviewed_at      TIMESTAMP,
     feedback         TEXT,
-    feedback_at      TIMESTAMPTZ,
+    feedback_at      TIMESTAMP,
     severity         VARCHAR(20),
-    created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    created_at       TIMESTAMP  NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMP  NOT NULL DEFAULT now(),
     deleted          SMALLINT              DEFAULT 0
 );
 CREATE UNIQUE INDEX uk_dr_image_hash ON diagnosis_records (image_hash) WHERE image_hash IS NOT NULL AND deleted = 0;
@@ -165,8 +165,8 @@ CREATE TABLE weather_records
     pressure     NUMERIC(7, 2),
     weather_desc VARCHAR(50),
     source       VARCHAR(30)          DEFAULT 'api',
-    recorded_at  TIMESTAMPTZ NOT NULL,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    recorded_at  TIMESTAMP NOT NULL,
+    created_at   TIMESTAMP NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_wr_farm_time ON weather_records (farm_id, recorded_at DESC);
 
@@ -182,7 +182,7 @@ CREATE TABLE market_prices
     category    VARCHAR(30),
     source      VARCHAR(30)           DEFAULT 'api',
     recorded_at DATE         NOT NULL,
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+    created_at  TIMESTAMP  NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_mp_crop_date ON market_prices (crop_id, recorded_at DESC);
 
@@ -200,10 +200,10 @@ CREATE TABLE farming_tasks
     assignee_id  UUID        NOT NULL REFERENCES users (id),
     created_by   UUID REFERENCES users (id),
     scheduled_date DATE,
-    completed_at TIMESTAMPTZ,
+    completed_at TIMESTAMP,
     remark       TEXT,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at   TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMP NOT NULL DEFAULT now(),
     deleted      SMALLINT             DEFAULT 0
 );
 CREATE INDEX idx_ft_assignee ON farming_tasks (assignee_id);
@@ -224,8 +224,8 @@ CREATE TABLE knowledge_documents
     version     INT                   DEFAULT 1,
     status      VARCHAR(20)           DEFAULT 'published',
     author_id   UUID REFERENCES users (id),
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    created_at  TIMESTAMP  NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMP  NOT NULL DEFAULT now(),
     deleted     SMALLINT              DEFAULT 0
 );
 CREATE INDEX idx_kd_embedding ON knowledge_documents USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
@@ -245,10 +245,10 @@ CREATE TABLE model_versions
     model_path     VARCHAR(500),
     config_json    JSONB,
     status         VARCHAR(20)           DEFAULT 'active',
-    deployed_at    TIMESTAMPTZ,
+    deployed_at    TIMESTAMP,
     description    TEXT,
-    created_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at     TIMESTAMPTZ  NOT NULL DEFAULT now()
+    created_at     TIMESTAMP  NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMP  NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX uk_mv_name_version ON model_versions (model_name, version);
 
@@ -265,9 +265,9 @@ CREATE TABLE agent_runs
     error_message TEXT,
     tokens_used   INT,
     cost          NUMERIC(10, 6),
-    started_at    TIMESTAMPTZ,
-    completed_at  TIMESTAMPTZ,
-    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
+    started_at    TIMESTAMP,
+    completed_at  TIMESTAMP,
+    created_at    TIMESTAMP  NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_ar_diagnosis ON agent_runs (diagnosis_id);
 
@@ -280,10 +280,10 @@ CREATE TABLE review_queue
     status        VARCHAR(20) NOT NULL DEFAULT 'pending',
     reason        VARCHAR(100),
     assigned_to   UUID REFERENCES users (id),
-    assigned_at   TIMESTAMPTZ,
-    completed_at  TIMESTAMPTZ,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    assigned_at   TIMESTAMP,
+    completed_at  TIMESTAMP,
+    created_at    TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMP NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX uk_rq_diagnosis ON review_queue (diagnosis_id);
 CREATE INDEX idx_rq_status ON review_queue (status);

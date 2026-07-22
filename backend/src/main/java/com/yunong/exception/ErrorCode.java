@@ -11,7 +11,9 @@ public enum ErrorCode {
     UNAUTHORIZED(401, "未认证"),
     FORBIDDEN(403, "无权限"),
     NOT_FOUND(404, "资源不存在"),
+    METHOD_NOT_ALLOWED(405, "不支持的请求方法"),
     CONFLICT(409, "资源冲突"),
+    UNSUPPORTED_MEDIA_TYPE(415, "不支持的媒体类型"),
     INTERNAL_ERROR(500, "服务器内部错误"),
 
     // 认证相关 1xxx

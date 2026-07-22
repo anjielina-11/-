@@ -3,7 +3,9 @@ version: '3.8'
 services:
   # PostgreSQL 16 + PostGIS 3 + pgvector
   postgres:
-    image: pgvector/pgvector:pg16
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
     container_name: yunnong-db
     restart: unless-stopped
     environment:

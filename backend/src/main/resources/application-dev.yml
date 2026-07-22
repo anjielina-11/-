@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/yunnong
+    url: jdbc:postgresql://localhost:5432/yunnong?stringtype=unspecified
     username: yunong
     password: yunong123
   data:

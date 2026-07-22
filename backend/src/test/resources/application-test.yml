@@ -9,7 +9,7 @@ spring:
     enabled: false
 
 jwt:
-  secret: test-secret-key-that-is-at-least-256-bits-long-enough-for-hs256-algorithm
+  secret: dGhpc0lzQVZlcnlTZWN1cmVBbmRMb25nU2VjcmV0S2V5Rm9yWXVubm9uZ1BsYXRmb3JtMjAyNA==
   expiration: 3600000
   refresh-expiration: 86400000
   header: Authorization

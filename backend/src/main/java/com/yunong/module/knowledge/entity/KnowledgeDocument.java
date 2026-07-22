@@ -21,4 +21,5 @@ public class KnowledgeDocument extends BaseEntity {
     private Integer version;
     private String status;
     private String authorId;
+    private String embedding; // pgvector vector(1536) 存储为字符串
 }

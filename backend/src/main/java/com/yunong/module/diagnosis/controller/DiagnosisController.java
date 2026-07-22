@@ -1,107 +1,45 @@
 package com.yunong.module.diagnosis.controller;
 
-import cn.hutool.core.text.CharSequenceUtil;
-import cn.hutool.crypto.digest.DigestUtil;
-import cn.hutool.json.JSONUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.yunong.common.AuditLog;
 import com.yunong.common.PageResult;
 import com.yunong.common.R;
-import com.yunong.config.MinioConfig;
-import com.yunong.exception.BusinessException;
-import com.yunong.exception.ErrorCode;
 import com.yunong.module.diagnosis.dto.DiagnosisResultResponse;
 import com.yunong.module.diagnosis.entity.DiagnosisRecord;
-import com.yunong.module.diagnosis.entity.Observation;
-import com.yunong.module.diagnosis.mapper.DiagnosisRecordMapper;
-import com.yunong.module.diagnosis.mapper.ObservationMapper;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
+import com.yunong.module.diagnosis.service.DiagnosisService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.InputStream;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
-@Slf4j
 @RestController
-@RequestMapping("/api/diagnosis")
+@RequestMapping("/api/v1/diagnosis")
 @RequiredArgsConstructor
 @Tag(name = "病害诊断", description = "图片上传、AI识别结果查询、人工审核")
 public class DiagnosisController {
 
-    private final DiagnosisRecordMapper drMapper;
-    private final ObservationMapper obsMapper;
-    private final MinioClient minioClient;
-    private final MinioConfig minioConfig;
+    private final DiagnosisService service;
 
     @PostMapping("/upload")
+    @AuditLog(action = "上传病害图片")
     @Operation(summary = "上传病害图片(异步推理)")
     public R<Map<String, Object>> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam String cycleId,
             @RequestParam(required = false) String description,
             @AuthenticationPrincipal UserDetails principal) throws Exception {
-
-        String hash = DigestUtil.sha256Hex(file.getBytes());
-        if (drMapper.selectCount(new LambdaQueryWrapper<DiagnosisRecord>()
-                .eq(DiagnosisRecord::getImageHash, hash)) > 0) {
-            throw new BusinessException(ErrorCode.IMAGE_HASH_DUPLICATE);
-        }
-
-        String objectName = "diagnosis/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
-        try (InputStream is = file.getInputStream()) {
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(minioConfig.getBucket())
-                    .object(objectName)
-                    .stream(is, file.getSize(), -1)
-                    .contentType(file.getContentType())
-                    .build());
-        }
-        String imageUrl = minioConfig.getEndpoint() + "/" + minioConfig.getBucket() + "/" + objectName;
-
-        var obs = new Observation();
-        obs.setCycleId(cycleId);
-        obs.setUserId(principal.getUsername());
-        obs.setObservationType("image");
-        obs.setDescription(description);
-        obs.setImages("[\"" + imageUrl + "\"]");
-        obs.setObservedAt(LocalDateTime.now());
-        obsMapper.insert(obs);
-
-        var dr = new DiagnosisRecord();
-        dr.setObservationId(obs.getId());
-        dr.setImageUrl(imageUrl);
-        dr.setImageHash(hash);
-        dr.setReviewStatus("pending");
-        drMapper.insert(dr);
-
-        var result = new HashMap<String, Object>();
-        result.put("diagnosisId", dr.getId());
-        result.put("observationId", obs.getId());
-        result.put("imageUrl", imageUrl);
-        result.put("status", "pending");
-        return R.ok(result);
+        return R.ok(service.upload(file, cycleId, description, principal.getUsername()));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "获取诊断详情")
     public R<DiagnosisRecord> getById(@PathVariable String id) {
-        var dr = drMapper.selectById(id);
-        if (dr == null) throw new BusinessException(ErrorCode.DIAGNOSIS_NOT_FOUND);
-        return R.ok(dr);
+        return R.ok(service.getById(id));
     }
 
     @GetMapping
@@ -111,98 +49,39 @@ public class DiagnosisController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String reviewStatus,
             @RequestParam(required = false) String diseaseName) {
-        var wrapper = new LambdaQueryWrapper<DiagnosisRecord>();
-        if (reviewStatus != null) wrapper.eq(DiagnosisRecord::getReviewStatus, reviewStatus);
-        if (diseaseName != null) wrapper.eq(DiagnosisRecord::getDiseaseName, diseaseName);
-        wrapper.orderByDesc(DiagnosisRecord::getCreatedAt);
-        var result = drMapper.selectPage(new Page<>(page, size), wrapper);
-        return R.ok(PageResult.of(result.getRecords(), result.getTotal()));
+        return R.ok(service.list(page, size, reviewStatus, diseaseName));
     }
 
     @GetMapping("/result/{taskId}")
     @Operation(summary = "查询AI识别结果")
     public R<DiagnosisResultResponse> getResult(@PathVariable String taskId) {
-        var dr = drMapper.selectById(taskId);
-        if (dr == null) throw new BusinessException(ErrorCode.DIAGNOSIS_NOT_FOUND);
-
-        String status;
-        if ("approved".equals(dr.getReviewStatus())) {
-            status = "completed";
-        } else if ("rejected".equals(dr.getReviewStatus())) {
-            status = "need_review";
-        } else {
-            status = "processing";
-        }
-
-        // 从 aiResult JSONB 中提取治疗建议和引用（AI 服务尚未接入时为 mock 数据）
-        String treatment = null;
-        java.util.List<DiagnosisResultResponse.Citation> citations = Collections.emptyList();
-        if (CharSequenceUtil.isNotBlank(dr.getAiResult())) {
-            try {
-                var aiJson = JSONUtil.parseObj(dr.getAiResult());
-                treatment = aiJson.getStr("treatment");
-                citations = aiJson.getJSONArray("citations")
-                        .toList(DiagnosisResultResponse.Citation.class);
-            } catch (Exception ignored) {
-                // aiResult 格式不兼容，返回空
-            }
-        }
-
-        return R.ok(new DiagnosisResultResponse(
-                status,
-                dr.getDiseaseName(),
-                dr.getConfidence() != null ? dr.getConfidence() : BigDecimal.ZERO,
-                treatment,
-                citations
-        ));
+        return R.ok(service.getResult(taskId));
     }
 
     @PostMapping("/{id}/review")
     @PreAuthorize("hasAnyRole('TECHNICIAN', 'ADMIN')")
+    @AuditLog(action = "审核诊断")
     @Operation(summary = "诊断审核(农技人员)")
     public R<DiagnosisRecord> review(
             @PathVariable String id,
             @RequestParam String status,
             @RequestParam(required = false) String comment,
             @AuthenticationPrincipal UserDetails principal) {
-        var dr = drMapper.selectById(id);
-        if (dr == null) throw new BusinessException(ErrorCode.DIAGNOSIS_NOT_FOUND);
-        if (!"pending".equals(dr.getReviewStatus())) {
-            throw new BusinessException(ErrorCode.DIAGNOSIS_ALREADY_REVIEWED);
-        }
-        dr.setReviewStatus(status);
-        dr.setReviewComment(comment);
-        dr.setReviewerId(principal.getUsername());
-        dr.setReviewedAt(LocalDateTime.now());
-        drMapper.updateById(dr);
-        return R.ok(dr);
+        return R.ok(service.review(id, status, comment, principal.getUsername()));
     }
 
     @PostMapping("/{id}/feedback")
+    @AuditLog(action = "防治效果反馈")
     @Operation(summary = "防治效果反馈(农户)")
     public R<DiagnosisRecord> feedback(
             @PathVariable String id,
-            @RequestParam String feedback,
-            @AuthenticationPrincipal UserDetails principal) {
-        var dr = drMapper.selectById(id);
-        if (dr == null) throw new BusinessException(ErrorCode.DIAGNOSIS_NOT_FOUND);
-        dr.setFeedback(feedback);
-        dr.setFeedbackAt(LocalDateTime.now());
-        drMapper.updateById(dr);
-        return R.ok(dr);
+            @RequestParam String feedback) {
+        return R.ok(service.feedback(id, feedback));
     }
 
     @GetMapping("/stats")
     @Operation(summary = "诊断统计")
     public R<Map<String, Object>> stats() {
-        var result = new HashMap<String, Object>();
-        result.put("total", drMapper.selectCount(null));
-        result.put("pending", drMapper.selectCount(
-                new LambdaQueryWrapper<DiagnosisRecord>().eq(DiagnosisRecord::getReviewStatus, "pending")));
-        result.put("approved", drMapper.selectCount(
-                new LambdaQueryWrapper<DiagnosisRecord>().eq(DiagnosisRecord::getReviewStatus, "approved")));
-        result.put("rejected", drMapper.selectCount(
-                new LambdaQueryWrapper<DiagnosisRecord>().eq(DiagnosisRecord::getReviewStatus, "rejected")));
-        return R.ok(result);
+        return R.ok(service.stats());
     }
 }

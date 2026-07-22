@@ -31,22 +31,39 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
+                        // ===== 公开接口 =====
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
-                        // Farmer and above
-                        .requestMatchers(HttpMethod.GET, "/api/v1/crops/**").hasAnyRole("FARMER", "TECHNICIAN", "COOP_MANAGER", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/weather/**").hasAnyRole("FARMER", "TECHNICIAN", "COOP_MANAGER", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/market/**").hasAnyRole("FARMER", "TECHNICIAN", "COOP_MANAGER", "ADMIN")
-                        // Technician and above
+                        // ===== 农户及以上（所有已认证用户）=====
+                        .requestMatchers(HttpMethod.GET, "/api/v1/crops/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/weather/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/market/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/farms/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/planting-cycles/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/model-versions/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/diagnosis/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tasks/**").authenticated()
+                        // ===== 农户及以上（CUD 操作）=====
+                        .requestMatchers(HttpMethod.POST, "/api/v1/farms/**").hasAnyRole("FARMER", "TECHNICIAN", "COOP_MANAGER", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/farms/**").hasAnyRole("FARMER", "TECHNICIAN", "COOP_MANAGER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/planting-cycles/**").hasAnyRole("FARMER", "TECHNICIAN", "COOP_MANAGER", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/planting-cycles/**").hasAnyRole("FARMER", "TECHNICIAN", "COOP_MANAGER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tasks/**").hasAnyRole("FARMER", "TECHNICIAN", "COOP_MANAGER", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/tasks/**").hasAnyRole("FARMER", "TECHNICIAN", "COOP_MANAGER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/diagnosis/upload").hasAnyRole("FARMER", "TECHNICIAN", "COOP_MANAGER", "ADMIN")
+                        // ===== 农技人员及以上 =====
                         .requestMatchers("/api/v1/diagnosis/*/review").hasAnyRole("TECHNICIAN", "ADMIN")
                         .requestMatchers("/api/v1/knowledge/**").hasAnyRole("TECHNICIAN", "COOP_MANAGER", "ADMIN")
-                        // Coop manager and above
+                        .requestMatchers(HttpMethod.POST, "/api/v1/model-versions/**").hasAnyRole("TECHNICIAN", "ADMIN")
+                        .requestMatchers("/api/v1/agent-runs/**").hasAnyRole("TECHNICIAN", "ADMIN")
+                        .requestMatchers("/api/v1/review-queue/**").hasAnyRole("TECHNICIAN", "ADMIN")
+                        // ===== 合作社管理及以上 =====
                         .requestMatchers("/api/v1/monitor/**").hasAnyRole("COOP_MANAGER", "ADMIN")
-                        // Admin only
+                        // ===== 仅管理员 =====
                         .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
-                        // Authenticated for everything else
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/model-versions/**").hasRole("ADMIN")
+                        // ===== 兜底：已认证可访问 =====
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

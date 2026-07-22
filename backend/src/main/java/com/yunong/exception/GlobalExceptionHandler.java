@@ -75,13 +75,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
     public R<Void> handleMediaType(HttpMediaTypeNotSupportedException e) {
-        return R.fail(415, "不支持的媒体类型");
+        return R.fail(ErrorCode.UNSUPPORTED_MEDIA_TYPE.getCode(), ErrorCode.UNSUPPORTED_MEDIA_TYPE.getMessage());
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
     public R<Void> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
-        return R.fail(405, "不支持的请求方法: " + e.getMethod());
+        return R.fail(ErrorCode.METHOD_NOT_ALLOWED.getCode(), ErrorCode.METHOD_NOT_ALLOWED.getMessage() + ": " + e.getMethod());
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
@@ -93,7 +93,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoHandlerFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public R<Void> handleNoHandler(NoHandlerFoundException e) {
-        return R.fail(404, "接口不存在: " + e.getRequestURL());
+        return R.fail(ErrorCode.NOT_FOUND.getCode(), ErrorCode.NOT_FOUND.getMessage() + ": " + e.getRequestURL());
     }
 
     @ExceptionHandler(Exception.class)
