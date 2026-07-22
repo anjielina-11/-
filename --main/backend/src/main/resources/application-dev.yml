@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/yunnong
+    username: yunong
+    password: yunong123
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+
+logging:
+  level:
+    com.yunong: DEBUG
+    org.mybatis: DEBUG

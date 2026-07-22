@@ -1,0 +1,15 @@
+node_modules/
+target/
+dist/
+*.jar
+*.log
+.env
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+ai-service/__pycache__/
+ai-service/.venv/
+ai-service/venv/
+*.pyc
+deploy/data/
