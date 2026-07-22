@@ -1,8 +1,0 @@
-node_modules/
-dist/
-target/
-*.log
-.idea/
-.vscode/
-*.iml
-.DS_Store
