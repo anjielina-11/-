@@ -1,0 +1,23 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.flywaydb.spring.boot.autoconfigure.FlywayAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration
+  flyway:
+    enabled: false
+
+jwt:
+  secret: dGhpc0lzQVZlcnlTZWN1cmVBbmRMb25nU2VjcmV0S2V5Rm9yWXVubm9uZ1BsYXRmb3JtMjAyNA==
+  expiration: 3600000
+  refresh-expiration: 86400000
+  header: Authorization
+  prefix: "Bearer "
+
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: test-bucket
+  region: us-east-1
