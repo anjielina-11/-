@@ -3,11 +3,16 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import router from '@/router'
 
+interface RequestConfig {
+  params?: Record<string, unknown>
+  headers?: Record<string, string>
+}
+
 interface CustomAxiosInstance extends AxiosInstance {
-  get<T = unknown>(url: string, config?: InternalAxiosRequestConfig): Promise<T>
-  post<T = unknown>(url: string, data?: unknown, config?: InternalAxiosRequestConfig): Promise<T>
-  put<T = unknown>(url: string, data?: unknown, config?: InternalAxiosRequestConfig): Promise<T>
-  delete<T = unknown>(url: string, config?: InternalAxiosRequestConfig): Promise<T>
+  get<T = unknown>(url: string, config?: RequestConfig): Promise<T>
+  post<T = unknown>(url: string, data?: unknown, config?: RequestConfig): Promise<T>
+  put<T = unknown>(url: string, data?: unknown, config?: RequestConfig): Promise<T>
+  delete<T = unknown>(url: string, config?: RequestConfig): Promise<T>
 }
 
 const service = axios.create({

@@ -50,3 +50,7 @@ deploy/data/
 *.swp
 *.swo
 *~
+
+# CodeArts 平台配置文件
+.arts/
+.codeartsdoer/

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import {
   ElCard,
   ElUpload,
@@ -13,19 +13,11 @@ import {
   ElCollapseItem,
   type UploadRawFile
 } from 'element-plus'
-import { Upload, Delete, Refresh } from '@element-plus/icons-vue'
+import { Delete, Refresh } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { useUserStore } from '@/stores/user'
 
 interface UploadResponse {
-  code: number
-  data: {
-    fileUrl: string
-    fileId: string
-  }
-}
-
-interface DiagnosisSubmitResponse {
   code: number
   data: {
     taskId: string
@@ -52,11 +44,6 @@ interface Field {
   name: string
 }
 
-interface FieldsResponse {
-  code: number
-  data: Field[]
-}
-
 const userStore = useUserStore()
 const fields = ref<Field[]>([])
 const fieldsLoading = ref(false)
@@ -65,7 +52,6 @@ const selectedField = ref('')
 const uploadedImageUrl = ref('')
 const uploadedFileId = ref('')
 const isUploading = ref(false)
-const isSubmitting = ref(false)
 
 const taskId = ref('')
 const diagnosisStatus = ref<'pending' | 'processing' | 'completed' | 'failed' | ''>('')
@@ -73,10 +59,6 @@ const diagnosisProgress = ref(0)
 const diagnosisResult = ref<{ diseaseName: string; confidence: number; suggestion: string } | null>(null)
 
 let pollTimer: number | null = null
-
-const canSubmit = computed(() => {
-  return selectedField.value && uploadedImageUrl.value && !isSubmitting.value
-})
 
 const uploadUrl = '/api/v1/diagnosis/upload'
 
@@ -103,9 +85,13 @@ const fetchFields = async () => {
         ElMessage.warning('请以农户身份登录操作')
       }
     } else {
-      const response = await request.get<FieldsResponse>('/farms/my-fields')
-      if (response.code === 200) {
-        fields.value = response.data
+      const farmResponse = await request.get<{ code: number; data: { list: { id: string; name: string }[] } }>('/farms')
+      if (farmResponse.code === 200 && farmResponse.data.list.length > 0) {
+        const farmId = farmResponse.data.list[0].id
+        const fieldsResponse = await request.get<{ code: number; data: { list: Field[] } }>(`/farms/${farmId}/fields`)
+        if (fieldsResponse.code === 200) {
+          fields.value = fieldsResponse.data.list
+        }
       }
     }
   } catch (error) {
@@ -133,9 +119,12 @@ const beforeUpload = (file: UploadRawFile) => {
 const handleUploadSuccess = (response: UploadResponse) => {
   isUploading.value = false
   if (response.code === 200 && response.data) {
-    uploadedImageUrl.value = response.data.imageUrl
-    uploadedFileId.value = response.data.diagnosisId
-    ElMessage.success('图片上传成功')
+    taskId.value = response.data.taskId
+    diagnosisStatus.value = 'processing'
+    diagnosisProgress.value = 10
+    diagnosisResult.value = null
+    ElMessage.success('识别任务已提交')
+    startPolling()
   } else {
     ElMessage.error('图片上传失败')
   }
@@ -151,33 +140,7 @@ const handleRemove = () => {
   uploadedFileId.value = ''
 }
 
-const submitDiagnosis = async () => {
-  if (!canSubmit.value) return
 
-  isSubmitting.value = true
-
-  try {
-    const response = await request.post<DiagnosisSubmitResponse>('/diagnosis/submit', {
-      fieldId: selectedField.value,
-      imageUrl: uploadedImageUrl.value
-    })
-
-    if (response.code === 200 && response.data) {
-      taskId.value = response.data.taskId
-      diagnosisStatus.value = 'processing'
-      diagnosisProgress.value = 10
-      diagnosisResult.value = null
-      ElMessage.success('识别任务已提交')
-      startPolling()
-    } else {
-      ElMessage.error('提交识别任务失败')
-    }
-  } catch (error) {
-    ElMessage.error('提交识别任务失败')
-  } finally {
-    isSubmitting.value = false
-  }
-}
 
 const startPolling = () => {
   stopPolling()
@@ -264,7 +227,7 @@ onUnmounted(() => {
               v-model="selectedField"
               placeholder="请选择地块"
               style="width: 100%"
-              :disabled="isSubmitting || fieldsLoading"
+              :disabled="isUploading || fieldsLoading"
             >
               <ElOption v-for="field in fields" :key="field.id" :label="field.name" :value="field.id" />
             </ElSelect>
@@ -280,7 +243,8 @@ onUnmounted(() => {
                 :before-upload="beforeUpload"
                 :on-success="handleUploadSuccess"
                 :on-error="handleUploadError"
-                :disabled="isSubmitting"
+                :disabled="isUploading || !selectedField"
+                :data="{ cycleId: selectedField }"
                 drag
                 class="custom-upload"
               >
@@ -306,9 +270,6 @@ onUnmounted(() => {
 
           <div class="form-actions">
             <ElButton @click="handleReset" :icon="Refresh">重置</ElButton>
-            <ElButton type="primary" :loading="isSubmitting" :disabled="!canSubmit" @click="submitDiagnosis">
-              提交识别
-            </ElButton>
           </div>
         </div>
       </ElCard>

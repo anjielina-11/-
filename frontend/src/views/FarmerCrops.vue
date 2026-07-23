@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElCard, ElTable, ElTableColumn, ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElDatePicker, ElSelect, ElOption, ElMessage, ElTag } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import request from '@/utils/request'
 
 interface Crop {
   id: string
@@ -16,13 +17,27 @@ interface Crop {
   notes?: string
 }
 
-const mockCrops: Crop[] = [
-  { id: '1', name: '水稻', fieldName: '水稻田A', plantedDate: '2026-05-10', expectedHarvestDate: '2026-08-20', status: '生长中', area: 5.5, variety: '籼稻', notes: '采用节水灌溉技术' },
-  { id: '2', name: '玉米', fieldName: '玉米地B', plantedDate: '2026-04-15', expectedHarvestDate: '2026-09-01', status: '生长中', area: 3.2, variety: '甜玉米' },
-  { id: '3', name: '番茄', fieldName: '蔬菜基地C', plantedDate: '2026-06-01', expectedHarvestDate: '2026-08-15', status: '待收获', area: 1.8, variety: '大红番茄', notes: '有机种植' },
-  { id: '4', name: '草莓', fieldName: '水果园D', plantedDate: '2025-10-01', expectedHarvestDate: '2026-05-30', status: '已收获', area: 2.0, variety: '红颜', notes: '冬季温室栽培' },
-  { id: '5', name: '黄瓜', fieldName: '蔬菜基地C', plantedDate: '2026-03-20', expectedHarvestDate: '2026-06-20', status: '已收获', area: 1.5, variety: '密刺黄瓜' }
-]
+interface PlantingCycle {
+  id: string
+  cropName: string
+  fieldName: string
+  plantedDate: string
+  expectedHarvestDate: string
+  status: string
+  area: number
+  variety: string
+  notes?: string
+}
+
+interface PageResult<T> {
+  list: T[]
+  total: number
+}
+
+interface Response<T> {
+  code: number
+  data: T
+}
 
 const crops = ref<Crop[]>([])
 const dialogVisible = ref(false)
@@ -52,8 +67,26 @@ const pendingCount = computed(() => crops.value.filter(c => c.status === '待收
 const harvestedCount = computed(() => crops.value.filter(c => c.status === '已收获').length)
 const totalArea = computed(() => crops.value.reduce((sum, c) => sum + c.area, 0))
 
-const loadCrops = () => {
-  crops.value = [...mockCrops]
+const loadCrops = async () => {
+  try {
+    const response = await request.get<Response<PageResult<PlantingCycle>>>('/planting-cycles')
+    if (response.code === 200) {
+      crops.value = response.data.list.map(cycle => ({
+        id: cycle.id,
+        name: cycle.cropName,
+        fieldName: cycle.fieldName,
+        plantedDate: cycle.plantedDate,
+        expectedHarvestDate: cycle.expectedHarvestDate,
+        status: cycle.status === 'ACTIVE' ? '生长中' : cycle.status === 'PENDING_HARVEST' ? '待收获' : '已收获',
+        area: cycle.area || 0,
+        variety: cycle.variety,
+        notes: cycle.notes
+      }))
+      updateChart()
+    }
+  } catch (error) {
+    ElMessage.error('获取种植档案失败')
+  }
 }
 
 const initChart = () => {
@@ -161,26 +194,49 @@ const handleEdit = (row: Crop) => {
   dialogVisible.value = true
 }
 
-const handleDelete = (id: string) => {
-  crops.value = crops.value.filter(c => c.id !== id)
-  ElMessage.success('删除成功')
-  updateChart()
+const handleDelete = async (id: string) => {
+  try {
+    await request.delete(`/planting-cycles/${id}`)
+    crops.value = crops.value.filter(c => c.id !== id)
+    ElMessage.success('删除成功')
+    updateChart()
+  } catch (error) {
+    ElMessage.error('删除失败')
+  }
 }
 
-const handleSubmit = () => {
-  if (editMode.value) {
-    const index = crops.value.findIndex(c => c.id === formData.value.id)
-    if (index !== -1) {
-      crops.value[index] = { ...formData.value }
+const handleSubmit = async () => {
+  try {
+    if (editMode.value) {
+      await request.put(`/planting-cycles/${formData.value.id}`, {
+        cropName: formData.value.name,
+        fieldName: formData.value.fieldName,
+        plantedDate: formData.value.plantedDate,
+        expectedHarvestDate: formData.value.expectedHarvestDate,
+        status: formData.value.status === '生长中' ? 'ACTIVE' : formData.value.status === '待收获' ? 'PENDING_HARVEST' : 'HARVESTED',
+        area: formData.value.area,
+        variety: formData.value.variety,
+        notes: formData.value.notes
+      })
       ElMessage.success('修改成功')
+    } else {
+      await request.post('/planting-cycles', {
+        cropName: formData.value.name,
+        fieldName: formData.value.fieldName,
+        plantedDate: formData.value.plantedDate,
+        expectedHarvestDate: formData.value.expectedHarvestDate,
+        status: 'ACTIVE',
+        area: formData.value.area,
+        variety: formData.value.variety,
+        notes: formData.value.notes
+      })
+      ElMessage.success('添加成功')
     }
-  } else {
-    formData.value.id = String(Date.now())
-    crops.value.unshift({ ...formData.value })
-    ElMessage.success('添加成功')
+    dialogVisible.value = false
+    loadCrops()
+  } catch (error) {
+    ElMessage.error(editMode.value ? '修改失败' : '添加失败')
   }
-  dialogVisible.value = false
-  updateChart()
 }
 
 const handleResize = () => {

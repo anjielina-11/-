@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElBadge, ElDropdown, ElDropdownMenu, ElDropdownItem, ElMessage } from 'element-plus'
+import { ElBadge, ElDropdown, ElDropdownItem, ElMessage } from 'element-plus'
 import { useNotificationStore } from '@/stores/notification'
 import { useRouter } from 'vue-router'
 

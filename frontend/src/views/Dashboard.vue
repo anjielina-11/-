@@ -77,7 +77,7 @@ const initWeatherChart = () => {
       textStyle: {
         color: 'var(--color-text-primary)',
         fontSize: 16,
-        fontWeight: '600'
+        fontWeight: 'bold' as const
       }
     },
     tooltip: {
@@ -228,7 +228,7 @@ const initPestChart = () => {
       textStyle: {
         color: 'var(--color-text-primary)',
         fontSize: 16,
-        fontWeight: '600'
+        fontWeight: 'bold' as const
       }
     },
     tooltip: {

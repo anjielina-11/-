@@ -12,11 +12,11 @@ import {
   ElForm,
   ElFormItem,
   ElInput,
-  ElProgress,
   ElMessage,
   type FormInstance
 } from 'element-plus'
 import { Clock, CircleCheck, CircleClose, RefreshRight } from '@element-plus/icons-vue'
+import request from '@/utils/request'
 
 export type ReviewStatus = 'pending' | 'approved' | 'rejected'
 
@@ -32,9 +32,27 @@ export interface ReviewItem {
   citations: { docTitle: string; snippet: string }[]
 }
 
-interface ReviewResponse {
+interface DiagnosisRecord {
+  id: string
+  taskId: string
+  farmerName: string
+  fieldName: string
+  diseaseName: string
+  confidence: number
+  reviewStatus: string
+  submitTime: string
+  treatment: string
+  citations: { docTitle: string; snippet: string }[]
+}
+
+interface PageResult<T> {
+  list: T[]
+  total: number
+}
+
+interface Response<T> {
   code: number
-  message: string
+  data: T
 }
 
 const tableData = ref<ReviewItem[]>([])
@@ -52,87 +70,6 @@ const form = reactive({
 })
 
 const formRef = ref<FormInstance>()
-
-const mockData: ReviewItem[] = [
-  {
-    taskId: 'DIAG-20240701-001',
-    farmerName: '张农户',
-    fieldName: '水稻田A',
-    diseaseName: '水稻稻瘟病',
-    confidence: 0.78,
-    status: 'pending',
-    submitTime: '2024-07-01 10:30:00',
-    treatment: '选用抗病品种，加强田间管理，适时喷药防治。',
-    citations: [
-      { docTitle: '云南水稻病虫害防治技术手册', snippet: '稻瘟病在高温高湿环境下极易爆发。' }
-    ]
-  },
-  {
-    taskId: 'DIAG-20240701-002',
-    farmerName: '李农户',
-    fieldName: '玉米地B',
-    diseaseName: '玉米纹枯病',
-    confidence: 0.65,
-    status: 'pending',
-    submitTime: '2024-07-01 14:20:00',
-    treatment: '合理密植，减少氮肥，及时清除病株。',
-    citations: [
-      { docTitle: '玉米病虫害综合防治技术', snippet: '纹枯病主要危害玉米茎秆和叶鞘。' }
-    ]
-  },
-  {
-    taskId: 'DIAG-20240630-003',
-    farmerName: '王农户',
-    fieldName: '蔬菜基地C',
-    diseaseName: '番茄晚疫病',
-    confidence: 0.92,
-    status: 'approved',
-    submitTime: '2024-06-30 09:15:00',
-    treatment: '轮作倒茬，加强通风透光，使用保护性药剂。',
-    citations: [
-      { docTitle: '蔬菜病虫害防治指南', snippet: '晚疫病是番茄生产中的毁灭性病害。' }
-    ]
-  },
-  {
-    taskId: 'DIAG-20240630-004',
-    farmerName: '赵农户',
-    fieldName: '水果园D',
-    diseaseName: '柑橘黄龙病',
-    confidence: 0.45,
-    status: 'rejected',
-    submitTime: '2024-06-30 16:45:00',
-    treatment: '加强检疫，及时清除病树，控制木虱传播。',
-    citations: [
-      { docTitle: '柑橘病虫害防治手册', snippet: '黄龙病是柑橘的毁灭性病害。' }
-    ]
-  },
-  {
-    taskId: 'DIAG-20240629-005',
-    farmerName: '孙农户',
-    fieldName: '茶叶基地E',
-    diseaseName: '茶炭疽病',
-    confidence: 0.88,
-    status: 'approved',
-    submitTime: '2024-06-29 11:00:00',
-    treatment: '选用抗病品种，及时摘除病叶，喷药保护。',
-    citations: [
-      { docTitle: '茶树病虫害防治技术', snippet: '炭疽病主要危害茶树叶片。' }
-    ]
-  },
-  {
-    taskId: 'DIAG-20240629-006',
-    farmerName: '周农户',
-    fieldName: '中药材园F',
-    diseaseName: '三七根腐病',
-    confidence: 0.55,
-    status: 'pending',
-    submitTime: '2024-06-29 13:30:00',
-    treatment: '轮作倒茬，土壤消毒，选用健康种苗。',
-    citations: [
-      { docTitle: '中药材病虫害防治技术', snippet: '根腐病是三七的主要病害之一。' }
-    ]
-  }
-]
 
 const statusOptions = [
   { value: '', label: '全部' },
@@ -179,12 +116,32 @@ const filteredData = computed(() => {
   return data
 })
 
-const fetchData = () => {
+const fetchData = async () => {
   loading.value = true
-  setTimeout(() => {
-    tableData.value = [...mockData]
+  try {
+    const params: Record<string, unknown> = {}
+    if (statusFilter.value) {
+      params.reviewStatus = statusFilter.value.toUpperCase()
+    }
+    const response = await request.get<Response<PageResult<DiagnosisRecord>>>('/diagnosis', { params, headers: {} })
+    if (response.code === 200) {
+      tableData.value = response.data.list.map(record => ({
+        taskId: record.taskId || record.id,
+        farmerName: record.farmerName || '未知农户',
+        fieldName: record.fieldName || '',
+        diseaseName: record.diseaseName || '',
+        confidence: record.confidence || 0,
+        status: record.reviewStatus === 'PENDING' ? 'pending' : record.reviewStatus === 'APPROVED' ? 'approved' : 'rejected',
+        submitTime: record.submitTime || '',
+        treatment: record.treatment || '',
+        citations: record.citations || []
+      }))
+    }
+  } catch (error) {
+    ElMessage.error('获取审核列表失败')
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 const handleFilterChange = () => {
@@ -214,10 +171,8 @@ const handleApprove = async () => {
   dialogLoading.value = true
   
   try {
-    await new Promise<ReviewResponse>((resolve) => {
-      setTimeout(() => {
-        resolve({ code: 0, message: '审核通过成功' })
-      }, 500)
+    await request.post(`/diagnosis/${currentItem.value.taskId}/review`, {
+      params: { status: 'APPROVED' }
     })
     
     const index = tableData.value.findIndex(item => item.taskId === currentItem.value?.taskId)
@@ -244,10 +199,8 @@ const handleReject = async () => {
   dialogLoading.value = true
   
   try {
-    await new Promise<ReviewResponse>((resolve) => {
-      setTimeout(() => {
-        resolve({ code: 0, message: '驳回成功' })
-      }, 500)
+    await request.post(`/diagnosis/${currentItem.value.taskId}/review`, {
+      params: { status: 'REJECTED', comment: form.rejectReason }
     })
     
     const index = tableData.value.findIndex(item => item.taskId === currentItem.value?.taskId)

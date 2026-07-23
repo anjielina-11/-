@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElCard, ElTable, ElTableColumn, ElDialog, ElButton, ElTag, ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
+import request from '@/utils/request'
 
 interface Task {
   id: string
@@ -12,13 +13,24 @@ interface Task {
   description?: string
 }
 
-const mockTasks: Task[] = [
-  { id: '1', title: '喷洒三环唑', fieldName: '水稻田A', dueDate: '2026-07-25', status: '待执行', description: '针对稻瘟病进行预防性喷洒，每亩用量200毫升' },
-  { id: '2', title: '除草作业', fieldName: '玉米地B', dueDate: '2026-07-26', status: '待执行', description: '清除田间杂草，确保作物正常生长' },
-  { id: '3', title: '施肥管理', fieldName: '蔬菜基地C', dueDate: '2026-07-24', status: '已完成', description: '施加有机肥，提高土壤肥力' },
-  { id: '4', title: '病虫害巡查', fieldName: '水果园D', dueDate: '2026-07-27', status: '执行中', description: '全面巡查果园，及时发现病虫害迹象' },
-  { id: '5', title: '灌溉调度', fieldName: '水稻田A', dueDate: '2026-07-23', status: '已完成', description: '根据天气情况调整灌溉水量' }
-]
+interface FarmingTask {
+  id: string
+  title: string
+  fieldName: string
+  dueDate: string
+  status: string
+  description?: string
+}
+
+interface PageResult<T> {
+  list: T[]
+  total: number
+}
+
+interface Response<T> {
+  code: number
+  data: T
+}
 
 const tasks = ref<Task[]>([])
 const dialogVisible = ref(false)
@@ -44,8 +56,23 @@ const isToday = (dateStr: string) => {
     today.getDate() === date.getDate()
 }
 
-const loadTasks = () => {
-  tasks.value = [...mockTasks]
+const loadTasks = async () => {
+  try {
+    const response = await request.get<Response<PageResult<FarmingTask>>>('/tasks')
+    if (response.code === 200) {
+      tasks.value = response.data.list.map(task => ({
+        id: task.id,
+        title: task.title,
+        fieldName: task.fieldName,
+        dueDate: task.dueDate,
+        status: task.status === 'PENDING' ? '待执行' : task.status === 'IN_PROGRESS' ? '执行中' : '已完成',
+        description: task.description
+      }))
+      updateChart()
+    }
+  } catch (error) {
+    ElMessage.error('获取任务列表失败')
+  }
 }
 
 const initChart = () => {
@@ -155,13 +182,19 @@ const handleRowClick = (row: Task) => {
 
 const markAsCompleted = async () => {
   if (!selectedTask.value) return
-  const index = tasks.value.findIndex(t => t.id === selectedTask.value!.id)
-  if (index !== -1) {
-    await new Promise(resolve => setTimeout(resolve, 500))
-    tasks.value[index].status = '已完成'
-    selectedTask.value!.status = '已完成'
-    ElMessage.success('任务已标记为完成')
-    updateChart()
+  try {
+    await request.put(`/tasks/${selectedTask.value.id}/status`, {
+      params: { status: 'COMPLETED' }
+    })
+    const index = tasks.value.findIndex(t => t.id === selectedTask.value!.id)
+    if (index !== -1) {
+      tasks.value[index].status = '已完成'
+      selectedTask.value!.status = '已完成'
+      ElMessage.success('任务已标记为完成')
+      updateChart()
+    }
+  } catch (error) {
+    ElMessage.error('更新任务状态失败')
   }
 }
 

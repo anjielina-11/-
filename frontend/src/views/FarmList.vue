@@ -16,9 +16,10 @@ import {
   type FormInstance
 } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete } from '@element-plus/icons-vue'
+import request from '@/utils/request'
 
 export interface IFarm {
-  id: number
+  id: string
   name: string
   farmName: string
   area: number
@@ -27,13 +28,23 @@ export interface IFarm {
   createdAt: string
 }
 
+interface PageResult<T> {
+  list: T[]
+  total: number
+}
+
+interface FarmResponse {
+  code: number
+  data: PageResult<IFarm>
+}
+
 const tableData = ref<IFarm[]>([])
 const loading = ref(false)
 const searchKeyword = ref('')
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增地块')
-const editId = ref<number | null>(null)
+const editId = ref<string | null>(null)
 
 const form = reactive({
   name: '',
@@ -71,38 +82,33 @@ const currentPage = ref(1)
 const cropTypes = ['水稻', '玉米', '小麦', '蔬菜', '水果', '花卉', '茶叶', '中药材']
 const soilTypes = ['红壤', '黄壤', '黑土', '褐土', '潮土', '水稻土', '紫色土', '沙土']
 
-const mockData: IFarm[] = [
-  { id: 1, name: '一号地块', farmName: '云南农业示范园', area: 50.5, cropType: '水稻', soilType: '水稻土', createdAt: '2024-01-15 10:30:00' },
-  { id: 2, name: '二号地块', farmName: '云南农业示范园', area: 35.2, cropType: '玉米', soilType: '红壤', createdAt: '2024-01-16 14:20:00' },
-  { id: 3, name: '三号地块', farmName: '昆明蔬菜基地', area: 28.8, cropType: '蔬菜', soilType: '潮土', createdAt: '2024-01-18 09:15:00' },
-  { id: 4, name: '四号地块', farmName: '大理水果农场', area: 62.0, cropType: '水果', soilType: '黄壤', createdAt: '2024-01-20 16:45:00' },
-  { id: 5, name: '五号地块', farmName: '普洱茶叶基地', area: 88.5, cropType: '茶叶', soilType: '红壤', createdAt: '2024-01-22 11:00:00' },
-  { id: 6, name: '六号地块', farmName: '丽江中药材园', area: 45.3, cropType: '中药材', soilType: '黑土', createdAt: '2024-01-25 13:30:00' },
-  { id: 7, name: '七号地块', farmName: '西双版纳花卉园', area: 32.0, cropType: '花卉', soilType: '紫色土', createdAt: '2024-01-28 10:00:00' },
-  { id: 8, name: '八号地块', farmName: '玉溪小麦基地', area: 75.6, cropType: '小麦', soilType: '褐土', createdAt: '2024-02-01 09:20:00' },
-  { id: 9, name: '九号地块', farmName: '红河玉米基地', area: 42.1, cropType: '玉米', soilType: '潮土', createdAt: '2024-02-05 15:10:00' },
-  { id: 10, name: '十号地块', farmName: '文山蔬菜基地', area: 38.4, cropType: '蔬菜', soilType: '水稻土', createdAt: '2024-02-10 11:45:00' },
-  { id: 11, name: '十一号地块', farmName: '楚雄水果基地', area: 55.0, cropType: '水果', soilType: '黄壤', createdAt: '2024-02-15 14:30:00' },
-  { id: 12, name: '十二号地块', farmName: '曲靖茶叶基地', area: 68.2, cropType: '茶叶', soilType: '红壤', createdAt: '2024-02-20 10:15:00' }
-]
-
-const fetchData = () => {
+const fetchData = async () => {
   loading.value = true
-  setTimeout(() => {
-    let filteredData = [...mockData]
-    if (searchKeyword.value) {
-      const keyword = searchKeyword.value.toLowerCase()
-      filteredData = filteredData.filter(item =>
-        item.name.toLowerCase().includes(keyword) ||
-        item.farmName.toLowerCase().includes(keyword)
-      )
+  try {
+    const response = await request.get<FarmResponse>('/farms', {
+      params: {
+        page: currentPage.value,
+        size: pageSize.value
+      },
+      headers: {}
+    })
+    if (response.code === 200) {
+      tableData.value = response.data.list.map(farm => ({
+        id: farm.id,
+        name: farm.name,
+        farmName: farm.farmName || farm.name,
+        area: farm.area || 0,
+        cropType: farm.cropType || '',
+        soilType: farm.soilType || '',
+        createdAt: farm.createdAt || ''
+      }))
+      total.value = response.data.total
     }
-    total.value = filteredData.length
-    const start = (currentPage.value - 1) * pageSize.value
-    const end = start + pageSize.value
-    tableData.value = filteredData.slice(start, end)
+  } catch (error) {
+    ElMessage.error('获取地块列表失败')
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 const handleSearch = () => {
@@ -155,13 +161,35 @@ const handleDelete = (row: IFarm) => {
   })
 }
 
-const handleSubmit = () => {
-  formRef.value?.validate((valid) => {
+const handleSubmit = async () => {
+  formRef.value?.validate(async (valid) => {
     if (!valid) return
 
-    ElMessage.success(editId.value ? '修改成功' : '新增成功')
-    dialogVisible.value = false
-    fetchData()
+    try {
+      if (editId.value) {
+        await request.put(`/farms/${editId.value}`, {
+          name: form.name,
+          farmName: form.farmName,
+          area: parseFloat(form.area),
+          cropType: form.cropType,
+          soilType: form.soilType
+        })
+        ElMessage.success('修改成功')
+      } else {
+        await request.post('/farms', {
+          name: form.name,
+          farmName: form.farmName,
+          area: parseFloat(form.area),
+          cropType: form.cropType,
+          soilType: form.soilType
+        })
+        ElMessage.success('新增成功')
+      }
+      dialogVisible.value = false
+      fetchData()
+    } catch (error) {
+      ElMessage.error(editId.value ? '修改失败' : '新增失败')
+    }
   })
 }
 
