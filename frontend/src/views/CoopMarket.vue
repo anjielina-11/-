@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { ElCard, ElTable, ElTableColumn, ElTag, ElButton } from 'element-plus'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ElTable, ElTableColumn, ElTag, ElButton } from 'element-plus'
 import * as echarts from 'echarts'
+import { RefreshRight, Top, Bottom, Minus } from '@element-plus/icons-vue'
 
 interface PriceItem {
   id: string
@@ -33,6 +34,10 @@ const chartRef2 = ref<HTMLDivElement | null>(null)
 let chartInstance1: echarts.ECharts | null = null
 let chartInstance2: echarts.ECharts | null = null
 
+const upCount = computed(() => prices.value.filter(item => item.trend === 'up').length)
+const downCount = computed(() => prices.value.filter(item => item.trend === 'down').length)
+const stableCount = computed(() => prices.value.filter(item => item.trend === 'stable').length)
+
 const loadPrices = () => {
   prices.value = [...mockPrices]
 }
@@ -55,15 +60,133 @@ const initPriceTrendChart = () => {
   const cornPrices = [1.8, 1.9, 2.0, 2.1, 2.2, 2.1, 1.9, null, null, null, null, null]
   
   chartInstance1.setOption({
-    title: { text: '主要农产品价格趋势', left: 'center', textStyle: { fontSize: 16 } },
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['水稻', '玉米'], bottom: 0 },
-    grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
-    xAxis: { type: 'category', boundaryGap: false, data: months },
-    yAxis: { type: 'value', name: '价格(元/公斤)' },
+    title: {
+      text: '主要农产品价格趋势',
+      left: 'center',
+      top: 16,
+      textStyle: {
+        color: 'var(--color-text-primary)',
+        fontSize: 16,
+        fontWeight: '600'
+      }
+    },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(255, 255, 255, 0.96)',
+      borderColor: 'var(--color-border)',
+      borderWidth: 1,
+      textStyle: {
+        color: 'var(--color-text-primary)',
+        fontSize: 13
+      }
+    },
+    legend: {
+      data: ['水稻', '玉米'],
+      bottom: 12,
+      textStyle: {
+        color: 'var(--color-text-secondary)',
+        fontSize: 13
+      },
+      itemWidth: 16,
+      itemHeight: 8,
+      itemGap: 24
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '15%',
+      top: 70,
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: months,
+      axisLabel: {
+        color: 'var(--color-text-secondary)',
+        fontSize: 12
+      },
+      axisLine: {
+        lineStyle: {
+          color: 'var(--color-border)'
+        }
+      },
+      axisTick: {
+        show: false
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '价格(元/公斤)',
+      nameTextStyle: {
+        color: 'var(--color-text-secondary)',
+        fontSize: 12,
+        padding: [0, 0, 0, 50]
+      },
+      axisLabel: {
+        color: 'var(--color-text-secondary)',
+        fontSize: 12
+      },
+      axisLine: {
+        show: false
+      },
+      axisTick: {
+        show: false
+      },
+      splitLine: {
+        lineStyle: {
+          color: 'var(--color-border-light)',
+          type: 'dashed'
+        }
+      }
+    },
     series: [
-      { name: '水稻', type: 'line', smooth: true, data: ricePrices, itemStyle: { color: '#409eff' } },
-      { name: '玉米', type: 'line', smooth: true, data: cornPrices, itemStyle: { color: '#67c23a' } }
+      {
+        name: '水稻',
+        type: 'line',
+        smooth: true,
+        data: ricePrices,
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: {
+          color: '#2D7D46',
+          width: 3
+        },
+        itemStyle: {
+          color: '#2D7D46',
+          borderWidth: 2,
+          borderColor: '#fff'
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(45, 125, 70, 0.2)' },
+            { offset: 1, color: 'rgba(45, 125, 70, 0.02)' }
+          ])
+        }
+      },
+      {
+        name: '玉米',
+        type: 'line',
+        smooth: true,
+        data: cornPrices,
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: {
+          color: '#3A9D5C',
+          width: 3
+        },
+        itemStyle: {
+          color: '#3A9D5C',
+          borderWidth: 2,
+          borderColor: '#fff'
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(58, 157, 92, 0.15)' },
+            { offset: 1, color: 'rgba(58, 157, 92, 0.02)' }
+          ])
+        }
+      }
     ]
   })
 }
@@ -71,19 +194,66 @@ const initPriceTrendChart = () => {
 const initMarketShareChart = () => {
   if (!chartInstance2) return
   chartInstance2.setOption({
-    title: { text: '市场份额分布', left: 'center', textStyle: { fontSize: 16 } },
-    tooltip: { trigger: 'item' },
+    title: {
+      text: '市场份额分布',
+      left: 'center',
+      top: 16,
+      textStyle: {
+        color: 'var(--color-text-primary)',
+        fontSize: 16,
+        fontWeight: '600'
+      }
+    },
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(255, 255, 255, 0.96)',
+      borderColor: 'var(--color-border)',
+      borderWidth: 1,
+      textStyle: {
+        color: 'var(--color-text-primary)',
+        fontSize: 13
+      },
+      formatter: (params: any) => {
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${params.color};"></span>
+          <span style="font-weight:600;">${params.name}</span>
+        </div>
+        <div style="color:#6B7280;">占比: <span style="color:#2D7D46;font-weight:600;">${params.percent}%</span></div>`
+      }
+    },
     series: [{
       type: 'pie',
-      radius: '65%',
-      center: ['50%', '50%'],
-      label: { show: true, fontSize: 12 },
+      radius: ['40%', '70%'],
+      center: ['50%', '55%'],
+      avoidLabelOverlap: true,
+      itemStyle: {
+        borderRadius: 8,
+        borderColor: '#fff',
+        borderWidth: 2
+      },
+      label: {
+        show: true,
+        fontSize: 12,
+        color: 'var(--color-text-secondary)'
+      },
+      emphasis: {
+        label: {
+          show: true,
+          fontSize: 14,
+          fontWeight: 'bold'
+        },
+        itemStyle: {
+          shadowBlur: 10,
+          shadowOffsetX: 0,
+          shadowColor: 'rgba(0, 0, 0, 0.2)'
+        }
+      },
       data: [
-        { value: 35, name: '昆明农产品市场', itemStyle: { color: '#409eff' } },
-        { value: 20, name: '曲靖农贸市场', itemStyle: { color: '#67c23a' } },
-        { value: 15, name: '大理蔬菜批发市场', itemStyle: { color: '#e6a23c' } },
-        { value: 15, name: '玉溪水果市场', itemStyle: { color: '#f56c6c' } },
-        { value: 15, name: '其他市场', itemStyle: { color: '#909399' } }
+        { value: 35, name: '昆明农产品市场', itemStyle: { color: '#2D7D46' } },
+        { value: 20, name: '曲靖农贸市场', itemStyle: { color: '#3A9D5C' } },
+        { value: 15, name: '大理蔬菜批发市场', itemStyle: { color: '#52C41A' } },
+        { value: 15, name: '玉溪水果市场', itemStyle: { color: '#73D13D' } },
+        { value: 15, name: '其他市场', itemStyle: { color: '#95DE64' } }
       ]
     }]
   })
@@ -91,6 +261,14 @@ const initMarketShareChart = () => {
 
 const handleRefresh = () => {
   loadPrices()
+  if (chartInstance1) {
+    chartInstance1.dispose()
+    chartInstance1 = null
+  }
+  if (chartInstance2) {
+    chartInstance2.dispose()
+    chartInstance2 = null
+  }
   initCharts()
 }
 
@@ -113,96 +291,354 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="coop-market-container">
-    <div class="chart-row">
-      <ElCard class="chart-card">
-        <div ref="chartRef1" class="chart-container"></div>
-      </ElCard>
-      <ElCard class="chart-card">
-        <div ref="chartRef2" class="chart-container"></div>
-      </ElCard>
+  <div class="page-container">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">市场价格监控</h1>
+        <p class="page-subtitle">实时追踪农产品价格变动与市场趋势</p>
+      </div>
+      <div class="header-actions">
+        <ElButton type="primary" @click="handleRefresh">
+          <el-icon><RefreshRight /></el-icon>
+          刷新数据
+        </ElButton>
+      </div>
     </div>
 
-    <ElCard class="table-card" header="今日市场价格">
-      <div class="card-header">
-        <span class="update-time">最后更新：2026-07-22 14:30</span>
-        <ElButton type="primary" @click="handleRefresh">刷新数据</ElButton>
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-card__bar stat-card__bar--success"></div>
+        <div class="stat-card__content">
+          <div class="stat-card__icon stat-card__icon--success">
+            <el-icon :size="22"><Top /></el-icon>
+          </div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ upCount }}</span>
+            <span class="stat-card__label">上涨品种</span>
+          </div>
+        </div>
       </div>
-      <ElTable :data="prices" border style="width: 100%">
-        <ElTableColumn prop="cropName" label="农产品" min-width="100" />
-        <ElTableColumn prop="market" label="市场" min-width="150" />
-        <ElTableColumn prop="currentPrice" label="当前价格" min-width="120">
+      <div class="stat-card">
+        <div class="stat-card__bar stat-card__bar--danger"></div>
+        <div class="stat-card__content">
+          <div class="stat-card__icon stat-card__icon--danger">
+            <el-icon :size="22"><Bottom /></el-icon>
+          </div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ downCount }}</span>
+            <span class="stat-card__label">下跌品种</span>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__bar stat-card__bar--info"></div>
+        <div class="stat-card__content">
+          <div class="stat-card__icon stat-card__icon--info">
+            <el-icon :size="22"><Minus /></el-icon>
+          </div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ stableCount }}</span>
+            <span class="stat-card__label">持平品种</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 图表区域 -->
+    <div class="chart-row">
+      <div class="chart-card">
+        <div ref="chartRef1" class="chart-container"></div>
+      </div>
+      <div class="chart-card">
+        <div ref="chartRef2" class="chart-container"></div>
+      </div>
+    </div>
+
+    <!-- 价格表格 -->
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-header__left">
+          <h3 class="table-title">今日市场价格</h3>
+          <span class="table-update">更新于 2026-07-22 14:30</span>
+        </div>
+      </div>
+      <ElTable
+        :data="prices"
+        class="custom-table"
+        :header-cell-style="{ background: 'var(--color-bg-page)', color: 'var(--color-text-secondary)', fontWeight: '600', borderBottom: 'none' }"
+        :cell-style="{ borderBottom: '1px solid var(--color-border-light)' }"
+      >
+        <ElTableColumn prop="cropName" label="农产品" min-width="100">
           <template #default="{ row }">
-            <span class="price-value">{{ row.currentPrice }}</span>
+            <span class="crop-name">{{ row.cropName }}</span>
+          </template>
+        </ElTableColumn>
+        <ElTableColumn prop="market" label="市场" min-width="160">
+          <template #default="{ row }">
+            <span class="market-text">{{ row.market }}</span>
+          </template>
+        </ElTableColumn>
+        <ElTableColumn prop="currentPrice" label="当前价格" min-width="130">
+          <template #default="{ row }">
+            <span class="price-current">{{ row.currentPrice.toFixed(1) }}</span>
             <span class="price-unit">{{ row.unit }}</span>
           </template>
         </ElTableColumn>
         <ElTableColumn prop="prevPrice" label="昨日价格" min-width="120">
           <template #default="{ row }">
-            <span>{{ row.prevPrice }}{{ row.unit }}</span>
+            <span class="price-prev">{{ row.prevPrice.toFixed(1) }} {{ row.unit }}</span>
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="change" label="涨跌幅" min-width="100">
+        <ElTableColumn prop="change" label="涨跌幅" min-width="110">
           <template #default="{ row }">
-            <ElTag :type="row.trend === 'up' ? 'success' : row.trend === 'down' ? 'danger' : 'info'">
+            <ElTag
+              :type="row.trend === 'up' ? 'success' : row.trend === 'down' ? 'danger' : 'info'"
+              size="small"
+              effect="light"
+              class="change-tag"
+            >
+              <span v-if="row.trend === 'up'">↑</span>
+              <span v-else-if="row.trend === 'down'">↓</span>
+              <span v-else>—</span>
               {{ row.trend === 'up' ? '+' : '' }}{{ row.change.toFixed(1) }}%
             </ElTag>
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="date" label="更新日期" min-width="120" />
+        <ElTableColumn prop="date" label="更新日期" min-width="120">
+          <template #default="{ row }">
+            <span class="date-text">{{ row.date }}</span>
+          </template>
+        </ElTableColumn>
       </ElTable>
-    </ElCard>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.coop-market-container {
-  padding: 20px;
-  background: #fafafa;
-  min-height: calc(100vh - 60px);
+/* 页面头部 */
+.header-actions {
+  display: flex;
+  align-items: center;
 }
 
-.chart-row {
+/* 统计卡片 */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.stat-card {
   display: flex;
-  gap: 20px;
-  margin-bottom: 20px;
+  align-items: stretch;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: box-shadow var(--transition-normal);
+}
+
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.stat-card__bar {
+  width: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.stat-card__bar--success {
+  background: var(--color-success);
+}
+
+.stat-card__bar--danger {
+  background: var(--color-danger);
+}
+
+.stat-card__bar--info {
+  background: var(--color-info);
+}
+
+.stat-card__content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
+  flex: 1;
+}
+
+.stat-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-card__icon--success {
+  background: rgba(82, 196, 26, 0.1);
+  color: var(--color-success);
+}
+
+.stat-card__icon--danger {
+  background: rgba(245, 34, 45, 0.1);
+  color: var(--color-danger);
+}
+
+.stat-card__icon--info {
+  background: rgba(24, 144, 255, 0.1);
+  color: var(--color-info);
+}
+
+.stat-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.stat-card__value {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.stat-card__label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* 图表区域 */
+.chart-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
 }
 
 .chart-card {
-  flex: 1;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: box-shadow var(--transition-normal);
+}
+
+.chart-card:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .chart-container {
   width: 100%;
-  min-height: 350px;
+  min-height: 380px;
+  padding: var(--spacing-md);
 }
 
+/* 表格 */
 .table-card {
-  max-width: 1200px;
-  margin: 0 auto;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: box-shadow var(--transition-normal);
 }
 
-.card-header {
+.table-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.table-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
 }
 
-.update-time {
-  font-size: 14px;
-  color: #909399;
+.table-header__left {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-md);
 }
 
-.price-value {
-  font-size: 18px;
-  font-weight: bold;
-  color: #303133;
+.table-title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.table-update {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.custom-table {
+  --el-table-border-color: transparent;
+  --el-table-header-bg-color: var(--color-bg-page);
+}
+
+.custom-table :deep(.el-table__row:hover > td) {
+  background-color: var(--color-bg-hover) !important;
+}
+
+.custom-table :deep(.el-table__row) {
+  transition: background-color var(--transition-fast);
+}
+
+.crop-name {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.market-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.price-current {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
 }
 
 .price-unit {
-  font-size: 14px;
-  color: #909399;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
   margin-left: 4px;
+}
+
+.price-prev {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.change-tag {
+  min-width: 72px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.date-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
+  .chart-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .stat-cards {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

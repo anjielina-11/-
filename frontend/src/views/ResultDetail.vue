@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import {
-  ElCard,
   ElProgress,
   ElAlert,
-  ElCollapse,
-  ElCollapseItem,
   ElButton,
   ElMessage,
   ElTag
 } from 'element-plus'
+import { ArrowLeft, DocumentAdd, WarningFilled } from '@element-plus/icons-vue'
 
 export interface ICitation {
   docTitle: string
@@ -54,9 +52,16 @@ const confidencePercent = computed(() => {
 
 const confidenceColor = computed(() => {
   const percent = confidencePercent.value
-  if (percent >= 80) return '#67c23a'
-  if (percent >= 50) return '#e6a23c'
-  return '#f56c6c'
+  if (percent >= 80) return 'var(--color-success)'
+  if (percent >= 50) return 'var(--color-warning)'
+  return 'var(--color-danger)'
+})
+
+const confidenceColorHex = computed(() => {
+  const percent = confidencePercent.value
+  if (percent >= 80) return '#52C41A'
+  if (percent >= 50) return '#FAAD14'
+  return '#F5222D'
 })
 
 const confidenceText = computed(() => {
@@ -64,6 +69,28 @@ const confidenceText = computed(() => {
   if (percent >= 80) return '高'
   if (percent >= 50) return '中'
   return '低'
+})
+
+const statusLabel = computed(() => {
+  if (!result.value) return ''
+  const map: Record<string, string> = {
+    completed: '识别完成',
+    need_review: '待审核',
+    processing: '处理中',
+    pending: '待处理'
+  }
+  return map[result.value.status] || ''
+})
+
+const statusTagType = computed(() => {
+  if (!result.value) return 'info' as const
+  const map: Record<string, 'success' | 'danger' | 'warning' | 'info'> = {
+    completed: 'success',
+    need_review: 'danger',
+    processing: 'warning',
+    pending: 'info'
+  }
+  return map[result.value.status] || 'info'
 })
 
 const isNeedReview = computed(() => {
@@ -88,94 +115,124 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="result-detail-container">
+  <div class="page-container">
+    <!-- 加载状态 -->
     <div v-if="loading" class="loading-container">
       <ElProgress type="circle" :percentage="0" />
     </div>
 
     <template v-else-if="result">
-      <div class="header-section">
-        <ElAlert
-          v-if="isNeedReview"
-          title="该结果置信度较低，已进入人工审核队列"
-          type="error"
-          :closable="false"
-          show-icon
-        />
+      <!-- 待审核提示横幅 -->
+      <ElAlert
+        v-if="isNeedReview"
+        class="review-alert"
+        title="该结果置信度较低，已进入人工审核队列"
+        type="error"
+        :closable="false"
+        show-icon
+      >
+        <template #icon>
+          <el-icon :size="18"><WarningFilled /></el-icon>
+        </template>
+      </ElAlert>
+
+      <!-- 页面头部 -->
+      <div class="page-header">
+        <div class="header-left">
+          <h1 class="page-title">识别结果详情</h1>
+          <p class="page-subtitle">查看病害识别的详细结果与防治建议</p>
+        </div>
+        <div class="header-actions">
+          <ElButton @click="handleBack">
+            <el-icon><ArrowLeft /></el-icon>
+            返回列表
+          </ElButton>
+          <ElButton type="primary" @click="handleGenerateTask">
+            <el-icon><DocumentAdd /></el-icon>
+            生成任务
+          </ElButton>
+        </div>
       </div>
 
-      <ElCard class="info-card">
-        <div class="disease-info">
+      <!-- 顶部信息卡片 -->
+      <div class="info-card">
+        <div class="info-card__left">
           <div class="disease-header">
             <h1 class="disease-name">{{ result.diseaseName }}</h1>
-            <ElTag :type="isNeedReview ? 'danger' : 'success'" size="large">
-              {{ result.status === 'completed' ? '识别完成' : result.status === 'need_review' ? '待审核' : result.status === 'processing' ? '处理中' : '待处理' }}
-            </ElTag>
+            <ElTag :type="statusTagType" size="large" effect="light">{{ statusLabel }}</ElTag>
           </div>
-
-          <div class="confidence-section">
-            <div class="confidence-circle">
-              <ElProgress
-                type="circle"
-                :percentage="confidencePercent"
-                :stroke-width="12"
-                :stroke-color="confidenceColor"
-                :text-inside="true"
-                :width="120"
-              />
-            </div>
-            <div class="confidence-info">
-              <p class="confidence-label">置信度</p>
-              <p class="confidence-value" :style="{ color: confidenceColor }">
-                {{ confidencePercent }}%
-              </p>
-              <p class="confidence-level">
-                <span>等级：</span>
-                <span :style="{ color: confidenceColor, fontWeight: 'bold' }">{{ confidenceText }}</span>
-              </p>
-            </div>
+          <div class="disease-meta">
+            <span class="meta-item">
+              <span class="meta-label">置信度等级</span>
+              <span class="meta-value" :style="{ color: confidenceColor }">{{ confidenceText }}</span>
+            </span>
+            <span class="meta-divider">|</span>
+            <span class="meta-item">
+              <span class="meta-label">识别状态</span>
+              <span class="meta-value">{{ statusLabel }}</span>
+            </span>
           </div>
         </div>
-
-        <div class="button-group">
-          <ElButton type="primary" @click="handleBack">返回列表</ElButton>
-          <ElButton type="success" @click="handleGenerateTask">生成农事任务</ElButton>
+        <div class="info-card__right">
+          <div class="confidence-ring">
+            <ElProgress
+              type="circle"
+              :percentage="confidencePercent"
+              :stroke-width="10"
+              :stroke-color="confidenceColorHex"
+              :width="140"
+              :show-text="false"
+            />
+            <div class="confidence-ring__center">
+              <span class="confidence-ring__value" :style="{ color: confidenceColor }">{{ confidencePercent }}</span>
+              <span class="confidence-ring__unit">%</span>
+            </div>
+          </div>
+          <span class="confidence-ring__label">置信度</span>
         </div>
-      </ElCard>
+      </div>
 
-      <ElCard class="treatment-card" header="防治建议">
-        <div class="treatment-content">
-          <pre>{{ result.treatment }}</pre>
+      <!-- 防治建议卡片 -->
+      <div class="treatment-card">
+        <div class="treatment-card__bar"></div>
+        <div class="treatment-card__content">
+          <div class="section-header">
+            <h3 class="section-title">防治建议</h3>
+          </div>
+          <div class="treatment-body">
+            <div class="treatment-text" v-for="(paragraph, idx) in result.treatment.split('\n\n')" :key="idx">
+              {{ paragraph }}
+            </div>
+          </div>
         </div>
-      </ElCard>
+      </div>
 
-      <ElCard class="citations-card" header="引用来源">
-        <ElCollapse>
-          <ElCollapseItem
+      <!-- 引用来源卡片 -->
+      <div class="citations-section">
+        <div class="section-header">
+          <h3 class="section-title">引用来源</h3>
+          <span class="section-count">共 {{ result.citations.length }} 条</span>
+        </div>
+        <div class="citations-grid">
+          <div
             v-for="(citation, index) in result.citations"
             :key="index"
-            :title="citation.docTitle"
+            class="citation-card"
           >
-            <div class="citation-item">
-              <p class="citation-title">{{ citation.docTitle }}</p>
+            <div class="citation-index">{{ index + 1 }}</div>
+            <div class="citation-body">
+              <a class="citation-title" href="javascript:void(0)">{{ citation.docTitle }}</a>
               <p class="citation-snippet">{{ citation.snippet }}</p>
             </div>
-          </ElCollapseItem>
-        </ElCollapse>
-      </ElCard>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
 
 <style scoped>
-.result-detail-container {
-  padding: 24px;
-  background: #fafafa;
-  min-height: calc(100vh - 60px);
-  max-width: 900px;
-  margin: 0 auto;
-}
-
+/* 加载状态 */
 .loading-container {
   display: flex;
   justify-content: center;
@@ -183,123 +240,285 @@ onMounted(() => {
   height: 50vh;
 }
 
-.header-section {
-  margin-bottom: 20px;
+/* 待审核提示 */
+.review-alert {
+  margin-bottom: var(--spacing-md);
+  border-radius: var(--radius-sm);
 }
 
+/* 页面头部 */
+.header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+/* 顶部信息卡片 */
 .info-card {
-  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+  transition: box-shadow var(--transition-normal);
+}
+
+.info-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.info-card__left {
+  flex: 1;
 }
 
 .disease-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
 }
 
 .disease-name {
   margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
+  font-size: var(--font-size-4xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.5px;
 }
 
-.confidence-section {
+.disease-meta {
   display: flex;
   align-items: center;
-  gap: 32px;
-  padding: 20px;
-  background: #f5f7fa;
-  border-radius: 8px;
+  gap: var(--spacing-md);
 }
 
-.confidence-circle {
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.meta-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.meta-value {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.meta-divider {
+  color: var(--color-border);
+}
+
+/* 置信度环形 */
+.info-card__right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-left: var(--spacing-2xl);
+}
+
+.confidence-ring {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confidence-ring__center {
+  position: absolute;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+}
+
+.confidence-ring__value {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.confidence-ring__unit {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  margin-left: 2px;
+}
+
+.confidence-ring__label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* 防治建议卡片 */
+.treatment-card {
+  display: flex;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: var(--spacing-lg);
+  transition: box-shadow var(--transition-normal);
+}
+
+.treatment-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.treatment-card__bar {
+  width: 4px;
+  background: var(--color-primary);
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
-.confidence-info {
+.treatment-card__content {
+  flex: 1;
+  padding: var(--spacing-xl);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-md);
+}
+
+.section-title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.section-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.treatment-body {
+  background: var(--color-primary-lighter);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+}
+
+.treatment-text {
+  font-size: var(--font-size-base);
+  line-height: 1.8;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.treatment-text:last-child {
+  margin-bottom: 0;
+}
+
+/* 引用来源 */
+.citations-section {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+  transition: box-shadow var(--transition-normal);
+}
+
+.citations-section:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.citations-grid {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-md);
 }
 
-.confidence-label {
-  margin: 0;
-  font-size: 14px;
-  color: #909399;
-}
-
-.confidence-value {
-  margin: 0;
-  font-size: 36px;
-  font-weight: 600;
-}
-
-.confidence-level {
-  margin: 0;
-  font-size: 14px;
-  color: #606266;
-}
-
-.button-group {
+.citation-card {
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #ebeef5;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: var(--color-bg-page);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-light);
+  transition: all var(--transition-normal);
 }
 
-.treatment-card {
-  margin-bottom: 20px;
+.citation-card:hover {
+  border-color: var(--color-primary-lighter);
+  background: var(--color-primary-lighter);
 }
 
-.treatment-content {
-  background: #f9fafb;
-  padding: 20px;
-  border-radius: 8px;
+.citation-index {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
-.treatment-content pre {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  font-size: 14px;
-  line-height: 1.8;
-  color: #303133;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.citations-card {
-  margin-bottom: 20px;
-}
-
-.citation-item {
-  padding: 16px;
-  background: #f9fafb;
-  border-radius: 6px;
+.citation-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
 }
 
 .citation-title {
-  margin: 0 0 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #409eff;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-info);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.citation-title:hover {
+  color: var(--color-primary-light);
+  text-decoration: underline;
 }
 
 .citation-snippet {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #606266;
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  color: var(--color-text-secondary);
 }
 
-:deep(.el-collapse-item__header) {
-  font-weight: 500;
-  color: #303133;
-}
+/* 响应式 */
+@media (max-width: 768px) {
+  .info-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
-:deep(.el-collapse-item__content) {
-  padding-top: 12px !important;
+  .info-card__right {
+    margin-left: 0;
+    margin-top: var(--spacing-lg);
+    align-self: center;
+  }
+
+  .disease-name {
+    font-size: var(--font-size-2xl);
+  }
+
+  .header-actions {
+    flex-wrap: wrap;
+  }
 }
 </style>

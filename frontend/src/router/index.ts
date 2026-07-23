@@ -38,6 +38,12 @@ const routes: RouteRecordRaw[] = [
         name: 'FarmerTasks',
         component: () => import('@/views/FarmerTask.vue'),
         meta: { requiresAuth: true, role: 'farmer' as Role }
+      },
+      {
+        path: 'profile',
+        name: 'FarmerProfile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { requiresAuth: true, role: 'farmer' as Role }
       }
     ]
   },
@@ -59,6 +65,12 @@ const routes: RouteRecordRaw[] = [
         name: 'TechResults',
         component: () => import('@/views/ResultDetail.vue'),
         meta: { requiresAuth: true, role: 'tech' as Role }
+      },
+      {
+        path: 'profile',
+        name: 'TechProfile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { requiresAuth: true, role: 'tech' as Role }
       }
     ]
   },
@@ -79,6 +91,12 @@ const routes: RouteRecordRaw[] = [
         path: 'market',
         name: 'CoopMarket',
         component: () => import('@/views/CoopMarket.vue'),
+        meta: { requiresAuth: true, role: 'coop' as Role }
+      },
+      {
+        path: 'profile',
+        name: 'CoopProfile',
+        component: () => import('@/views/Profile.vue'),
         meta: { requiresAuth: true, role: 'coop' as Role }
       }
     ]
@@ -106,6 +124,12 @@ const routes: RouteRecordRaw[] = [
         path: 'models',
         name: 'AdminModels',
         component: () => import('@/views/AdminModels.vue'),
+        meta: { requiresAuth: true, role: 'admin' as Role }
+      },
+      {
+        path: 'profile',
+        name: 'AdminProfile',
+        component: () => import('@/views/Profile.vue'),
         meta: { requiresAuth: true, role: 'admin' as Role }
       }
     ]

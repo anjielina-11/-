@@ -10,8 +10,12 @@ import {
   ElMessageBox,
   ElMessage,
   ElPagination,
+  ElSelect,
+  ElOption,
+  ElCard,
   type FormInstance
 } from 'element-plus'
+import { Search, Refresh, Plus, Edit, Delete } from '@element-plus/icons-vue'
 
 export interface IFarm {
   id: number
@@ -50,13 +54,13 @@ const rules = {
   ],
   area: [
     { required: true, message: '请输入面积', trigger: 'blur' },
-    { type: 'number', min: 0, message: '面积必须大于0', trigger: 'blur' }
+    { type: 'number' as const, min: 0, message: '面积必须大于0', trigger: 'blur' }
   ],
   cropType: [
-    { required: true, message: '请输入作物类型', trigger: 'blur' }
+    { required: true, message: '请选择作物类型', trigger: 'change' }
   ],
   soilType: [
-    { required: true, message: '请输入土壤类型', trigger: 'blur' }
+    { required: true, message: '请选择土壤类型', trigger: 'change' }
   ]
 }
 
@@ -183,65 +187,92 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="farm-list-container">
-    <div class="search-bar">
-      <ElInput
-        v-model="searchKeyword"
-        placeholder="按名称模糊查询"
-        clearable
-        style="width: 300px"
-        @keyup.enter="handleSearch"
-      />
-      <ElButton type="primary" @click="handleSearch">搜索</ElButton>
-      <ElButton @click="handleReset">重置</ElButton>
-      <ElButton type="success" @click="handleAdd" style="margin-left: auto">
-        新增地块
-      </ElButton>
+  <div class="page-container">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">地块管理</h1>
+        <p class="page-subtitle">管理您的农场和地块信息</p>
+      </div>
+      <ElButton type="primary" :icon="Plus" @click="handleAdd">新增地块</ElButton>
     </div>
 
-    <ElTable
-      :data="tableData"
-      :loading="loading"
-      border
-      style="width: 100%"
-    >
-      <ElTableColumn prop="name" label="地块名称" />
-      <ElTableColumn prop="farmName" label="所属农场" />
-      <ElTableColumn prop="area" label="面积（亩）">
-        <template #default="{ row }">
-          {{ (row as IFarm).area.toFixed(1) }}
-        </template>
-      </ElTableColumn>
-      <ElTableColumn prop="cropType" label="作物类型" />
-      <ElTableColumn prop="soilType" label="土壤类型" />
-      <ElTableColumn prop="createdAt" label="创建时间" width="180" />
-      <ElTableColumn label="操作" width="180" fixed="right">
-        <template #default="{ row }">
-          <ElButton type="primary" link @click="handleEdit(row as IFarm)">编辑</ElButton>
-          <ElButton type="danger" link @click="handleDelete(row as IFarm)">删除</ElButton>
-        </template>
-      </ElTableColumn>
-    </ElTable>
+    <!-- 搜索栏 -->
+    <ElCard class="search-card" shadow="never">
+      <div class="search-bar">
+        <ElInput
+          v-model="searchKeyword"
+          placeholder="按名称或农场模糊查询"
+          clearable
+          :prefix-icon="Search"
+          class="search-input"
+          @keyup.enter="handleSearch"
+        />
+        <ElButton type="primary" :icon="Search" @click="handleSearch">搜索</ElButton>
+        <ElButton :icon="Refresh" @click="handleReset">重置</ElButton>
+      </div>
+    </ElCard>
 
-    <div class="pagination-bar">
-      <ElPagination
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-        :current-page="currentPage"
-        :page-sizes="[10, 20, 50, 100]"
-        :page-size="pageSize"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-      />
-    </div>
+    <!-- 表格 -->
+    <ElCard class="table-card" shadow="never">
+      <el-table
+        :data="tableData"
+        :loading="loading"
+        class="custom-table"
+      >
+        <el-table-column prop="name" label="地块名称" min-width="120">
+          <template #default="{ row }">
+            <span class="cell-primary">{{ (row as IFarm).name }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="farmName" label="所属农场" min-width="150" />
+        <el-table-column prop="area" label="面积（亩）" min-width="100" align="right">
+          <template #default="{ row }">
+            <span class="cell-number">{{ (row as IFarm).area.toFixed(1) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="cropType" label="作物类型" min-width="100">
+          <template #default="{ row }">
+            <span class="crop-tag">{{ (row as IFarm).cropType }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="soilType" label="土壤类型" min-width="100" />
+        <el-table-column prop="createdAt" label="创建时间" min-width="170" />
+        <el-table-column label="操作" width="120" fixed="right" align="center">
+          <template #default="{ row }">
+            <div class="action-btns">
+              <ElButton type="primary" link :icon="Edit" @click="handleEdit(row as IFarm)" />
+              <ElButton type="danger" link :icon="Delete" @click="handleDelete(row as IFarm)" />
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
 
+      <!-- 分页 -->
+      <div class="pagination-bar">
+        <ElPagination
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+          :current-page="currentPage"
+          :page-sizes="[10, 20, 50, 100]"
+          :page-size="pageSize"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+        />
+      </div>
+    </ElCard>
+
+    <!-- 新增/编辑对话框 -->
     <ElDialog
       :title="dialogTitle"
       v-model="dialogVisible"
-      width="500px"
+      width="520px"
+      :close-on-click-modal="false"
       @close="handleClose"
+      class="custom-dialog"
     >
-      <ElForm ref="formRef" :model="form" :rules="rules" label-width="100px">
+      <ElForm ref="formRef" :model="form" :rules="rules" label-width="100px" label-position="left" class="custom-form">
         <ElFormItem label="地块名称" prop="name">
           <ElInput v-model="form.name" placeholder="请输入地块名称" />
         </ElFormItem>
@@ -252,50 +283,164 @@ onMounted(() => {
           <ElInput v-model="form.area" type="number" placeholder="请输入面积" />
         </ElFormItem>
         <ElFormItem label="作物类型" prop="cropType">
-          <ElInput v-model="form.cropType" placeholder="请输入作物类型" list="cropTypeList" />
-          <datalist id="cropTypeList">
-            <option v-for="type in cropTypes" :key="type" :value="type" />
-          </datalist>
+          <ElSelect v-model="form.cropType" placeholder="请选择作物类型" style="width: 100%">
+            <ElOption v-for="type in cropTypes" :key="type" :label="type" :value="type" />
+          </ElSelect>
         </ElFormItem>
         <ElFormItem label="土壤类型" prop="soilType">
-          <ElInput v-model="form.soilType" placeholder="请输入土壤类型" list="soilTypeList" />
-          <datalist id="soilTypeList">
-            <option v-for="type in soilTypes" :key="type" :value="type" />
-          </datalist>
+          <ElSelect v-model="form.soilType" placeholder="请选择土壤类型" style="width: 100%">
+            <ElOption v-for="type in soilTypes" :key="type" :label="type" :value="type" />
+          </ElSelect>
         </ElFormItem>
       </ElForm>
       <template #footer>
-        <ElButton @click="handleClose">取消</ElButton>
-        <ElButton type="primary" @click="handleSubmit">确定</ElButton>
+        <div class="dialog-footer">
+          <ElButton @click="handleClose">取消</ElButton>
+          <ElButton type="primary" @click="handleSubmit">确定</ElButton>
+        </div>
       </template>
     </ElDialog>
   </div>
 </template>
 
 <style scoped>
-.farm-list-container {
-  padding: 20px;
-  background: #fafafa;
-  min-height: calc(100vh - 60px);
+/* 搜索卡片 */
+.search-card {
+  margin-bottom: var(--spacing-md);
+}
+
+.search-card :deep(.el-card__body) {
+  padding: var(--spacing-md) var(--spacing-lg);
 }
 
 .search-bar {
   display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
+.search-input {
+  width: 320px;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  border-radius: var(--radius-sm);
+}
+
+/* 表格卡片 */
+.table-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+.custom-table {
+  --el-table-border-color: var(--color-border-light);
+  --el-table-header-bg-color: var(--color-bg-page);
+  --el-table-row-hover-bg-color: var(--color-bg-hover);
+}
+
+.custom-table :deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+
+.custom-table :deep(th.el-table__cell) {
+  background-color: var(--color-bg-page) !important;
+  color: var(--color-text-secondary) !important;
+  font-weight: 600 !important;
+  font-size: var(--font-size-sm) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+}
+
+.custom-table :deep(td.el-table__cell) {
+  border-bottom: 1px solid var(--color-border-light) !important;
+  color: var(--color-text-primary);
+}
+
+.custom-table :deep(.el-table__row:last-child td.el-table__cell) {
+  border-bottom: none !important;
+}
+
+.cell-primary {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.cell-number {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-regular);
+}
+
+.crop-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  background-color: var(--color-primary-lighter);
+  color: var(--color-primary);
+  border-radius: 20px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+/* 操作按钮 */
+.action-btns {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
+.action-btns :deep(.el-button) {
+  padding: 4px;
+  font-size: 16px;
+}
+
+/* 分页 */
 .pagination-bar {
   display: flex;
   justify-content: flex-end;
-  margin-top: 20px;
-  padding: 16px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-top: 1px solid var(--color-border-light);
+}
+
+/* 对话框 */
+.custom-dialog :deep(.el-dialog) {
+  border-radius: var(--radius-lg) !important;
+}
+
+.custom-dialog :deep(.el-dialog__header) {
+  padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
+  border-bottom: 1px solid var(--color-border-light);
+  margin-right: 0;
+}
+
+.custom-dialog :deep(.el-dialog__title) {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.custom-dialog :deep(.el-dialog__body) {
+  padding: var(--spacing-lg);
+}
+
+.custom-dialog :deep(.el-dialog__footer) {
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.custom-form :deep(.el-input__wrapper) {
+  border-radius: var(--radius-sm);
+}
+
+.custom-form :deep(.el-select) {
+  width: 100%;
+}
+
+.custom-form :deep(.el-select .el-input__wrapper) {
+  border-radius: var(--radius-sm);
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
 }
 </style>
