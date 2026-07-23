@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query
 from typing import Optional
-from models.schemas import WeatherResponse, WeatherInfo
-from services.weather_service import WeatherService
+from ..models.schemas import WeatherResponse, WeatherInfo
+from ..services.weather_service import WeatherService
 
 router = APIRouter(prefix="/api/v1/weather", tags=["weather"])
 

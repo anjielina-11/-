@@ -1,6 +1,6 @@
 from PIL import Image
 from io import BytesIO
-from ..models.schemas import DiagnosisResult
+from models.schemas import DiagnosisResult
 from ..core.config import settings
 from .inference_service import DiseaseClassifier, UnknownDiseaseError
 
@@ -90,8 +90,8 @@ class DiagnosisService:
             return False, f"图片大小超过限制（最大 {settings.MAX_IMAGE_SIZE // 1024 // 1024}MB）"
         
         extension = filename.split(".")[-1].lower()
-        if extension not in settings.ALLOWED_IMAGE_EXTENSIONS:
-            return False, f"不支持的图片格式，支持的格式：{', '.join(settings.ALLOWED_IMAGE_EXTENSIONS)}"
+        if extension not in settings.allowed_extensions_list:
+            return False, f"不支持的图片格式，支持的格式：{', '.join(settings.allowed_extensions_list)}"
         
         try:
             Image.open(BytesIO(image_bytes))

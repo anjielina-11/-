@@ -1,14 +1,14 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from typing import Optional, Union
-from models.schemas import (
+from ..models.schemas import (
     DiseaseAdviceResponse, PendingReviewResponse, ErrorResponse,
     DiseaseClassification, DiagnosisResult, DiseaseListResponse
 )
-from services.inference_service import DiseaseClassifier, UnknownDiseaseError
-from services.agent_service import AgentService
-from services.diagnosis_service import DiagnosisService
-from services.weather_service import WeatherService
-from core.config import settings
+from ..services.inference_service import DiseaseClassifier, UnknownDiseaseError
+from ..services.agent_service import AgentService
+from ..services.diagnosis_service import DiagnosisService
+from ..services.weather_service import WeatherService
+from ..core.config import settings
 
 router = APIRouter(prefix="/api/v1/diagnosis", tags=["diagnosis"])
 

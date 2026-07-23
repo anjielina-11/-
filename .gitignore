@@ -1,15 +1,52 @@
+# 依赖
 node_modules/
 target/
-dist/
 *.jar
-*.log
-.env
+
+# 构建产物
+dist/
+build/
+
+# IDE
 .idea/
 *.iml
+.vscode/
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 日志
+*.log
+logs/
+
+# OS
 .DS_Store
 Thumbs.db
-ai-service/__pycache__/
-ai-service/.venv/
-ai-service/venv/
+
+# Python
+__pycache__/
 *.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# AI 模型文件 (太大, 用 Git LFS 或单独存储)
+*.pth
+*.pt
+*.h5
+*.onnx
+
+# 向量数据库 (本地数据)
+chroma_db/
+
+# Docker
 deploy/data/
+
+# 临时文件
+*.tmp
+*.swp
+*.swo
+*~

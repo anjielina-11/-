@@ -1,6 +1,6 @@
 import requests
 from typing import Optional, Dict
-from core.config import settings
+from ..core.config import settings
 
 
 class WeatherService:

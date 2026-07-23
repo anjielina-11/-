@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.diagnosis import router as diagnosis_router
-from api.weather import router as weather_router
-from api.rag import router as rag_router
-from core.config import settings
-from services.inference_service import DiseaseClassifier
-from services.rag_service import RAGService
-from models.schemas import HealthResponse
+from .api.diagnosis import router as diagnosis_router
+from .api.weather import router as weather_router
+from .api.rag import router as rag_router
+from .core.config import settings
+from .services.inference_service import DiseaseClassifier
+from .services.rag_service import RAGService
+from .models.schemas import HealthResponse
 
 app = FastAPI(
     title=settings.APP_NAME,

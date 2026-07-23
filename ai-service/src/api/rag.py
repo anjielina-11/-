@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from models.schemas import RetrieveRequest, RetrieveResponse, IngestRequest, IngestResponse
-from services.rag_service import RAGService
+from ..models.schemas import RetrieveRequest, RetrieveResponse, IngestRequest, IngestResponse
+from ..services.rag_service import RAGService
 
 router = APIRouter(prefix="/api/v1/rag", tags=["rag"])
 

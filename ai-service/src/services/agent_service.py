@@ -1,9 +1,9 @@
 import json
 import requests
 from typing import Optional, Dict, List
-from services.rag_service import RAGService
-from services.weather_service import WeatherService
-from core.config import settings
+from .rag_service import RAGService
+from .weather_service import WeatherService
+from ..core.config import settings
 
 
 class AgentService:

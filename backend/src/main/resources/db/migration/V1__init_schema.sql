@@ -291,6 +291,6 @@ CREATE INDEX idx_rq_assigned ON review_queue (assigned_to);
 
 -- 初始数据：管理员账号 (密码: admin123)
 INSERT INTO users (id, username, password_hash, role, real_name, status)
-VALUES (uuid_generate_v4(), 'admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi',
+VALUES (uuid_generate_v4(), 'admin', '$2b$10$Is7S6BkxOcRP4oenDU3OouV.fL96viFZAYIv6.kyqDNJLO.6w6WJ.',
         'ROLE_ADMIN', '系统管理员', 1)
 ON CONFLICT DO NOTHING;
