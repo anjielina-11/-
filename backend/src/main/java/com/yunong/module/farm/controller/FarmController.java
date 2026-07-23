@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import com.yunong.security.UserDetailsImpl;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -29,17 +29,17 @@ public class FarmController {
     @PostMapping
     @AuditLog(action = "创建农场")
     @Operation(summary = "创建农场")
-    public R<Farm> create(@Valid @RequestBody Farm farm, @AuthenticationPrincipal UserDetails principal) {
-        return R.ok(service.create(farm, principal.getUsername()));
+    public R<Farm> create(@Valid @RequestBody Farm farm, @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.create(farm, principal.getUserId()));
     }
 
     @GetMapping
     @Operation(summary = "我的农场列表")
     public R<PageResult<Farm>> list(
-            @AuthenticationPrincipal UserDetails principal,
+            @AuthenticationPrincipal UserDetailsImpl principal,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return R.ok(service.listByOwner(principal.getUsername(), page, size));
+        return R.ok(service.listByOwner(principal.getUserId(), page, size));
     }
 
     @GetMapping("/{id}")

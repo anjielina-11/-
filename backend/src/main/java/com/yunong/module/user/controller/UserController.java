@@ -10,7 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import com.yunong.security.UserDetailsImpl;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,15 +23,15 @@ public class UserController {
 
     @GetMapping("/me")
     @Operation(summary = "获取当前用户信息")
-    public R<User> me(@AuthenticationPrincipal UserDetails principal) {
-        return R.ok(service.getMe(principal.getUsername()));
+    public R<User> me(@AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.getMe(principal.getUserId()));
     }
 
     @PutMapping("/me")
     @AuditLog(action = "修改个人信息")
     @Operation(summary = "修改个人信息")
-    public R<User> updateMe(@AuthenticationPrincipal UserDetails principal, @RequestBody User update) {
-        return R.ok(service.updateMe(principal.getUsername(), update));
+    public R<User> updateMe(@AuthenticationPrincipal UserDetailsImpl principal, @RequestBody User update) {
+        return R.ok(service.updateMe(principal.getUserId(), update));
     }
 
     @GetMapping

@@ -9,7 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import com.yunong.security.UserDetailsImpl;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -27,8 +27,8 @@ public class TaskController {
     @AuditLog(action = "创建农事任务")
     @Operation(summary = "创建农事任务")
     public R<FarmingTask> create(@Valid @RequestBody FarmingTask task,
-                                  @AuthenticationPrincipal UserDetails principal) {
-        return R.ok(service.create(task, principal.getUsername()));
+                                  @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.create(task, principal.getUserId()));
     }
 
     @GetMapping
@@ -63,7 +63,7 @@ public class TaskController {
     public R<List<FarmingTask>> calendar(
             @RequestParam int year,
             @RequestParam int month,
-            @AuthenticationPrincipal UserDetails principal) {
-        return R.ok(service.calendar(year, month, principal.getUsername()));
+            @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.calendar(year, month, principal.getUserId()));
     }
 }

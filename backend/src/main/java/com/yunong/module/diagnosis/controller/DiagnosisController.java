@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import com.yunong.security.UserDetailsImpl;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,8 +32,8 @@ public class DiagnosisController {
             @RequestParam("file") MultipartFile file,
             @RequestParam String cycleId,
             @RequestParam(required = false) String description,
-            @AuthenticationPrincipal UserDetails principal) throws Exception {
-        return R.ok(service.upload(file, cycleId, description, principal.getUsername()));
+            @AuthenticationPrincipal UserDetailsImpl principal) throws Exception {
+        return R.ok(service.upload(file, cycleId, description, principal.getUserId()));
     }
 
     @GetMapping("/{id}")
@@ -66,8 +66,8 @@ public class DiagnosisController {
             @PathVariable String id,
             @RequestParam String status,
             @RequestParam(required = false) String comment,
-            @AuthenticationPrincipal UserDetails principal) {
-        return R.ok(service.review(id, status, comment, principal.getUsername()));
+            @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.review(id, status, comment, principal.getUserId()));
     }
 
     @PostMapping("/{id}/feedback")

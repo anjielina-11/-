@@ -10,7 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import com.yunong.security.UserDetailsImpl;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -49,8 +49,8 @@ public class CropController {
     @AuditLog(action = "创建种植周期")
     @Operation(summary = "创建种植周期")
     public R<PlantingCycle> createCycle(@Valid @RequestBody PlantingCycle cycle,
-                                         @AuthenticationPrincipal UserDetails principal) {
-        return R.ok(service.createCycle(cycle, principal.getUsername()));
+                                         @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.createCycle(cycle, principal.getUserId()));
     }
 
     @GetMapping("/planting-cycles")

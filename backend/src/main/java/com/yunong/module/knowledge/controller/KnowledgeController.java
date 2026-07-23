@@ -10,7 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import com.yunong.security.UserDetailsImpl;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -28,8 +28,8 @@ public class KnowledgeController {
     @AuditLog(action = "上传知识文档")
     @Operation(summary = "上传知识文档")
     public R<KnowledgeDocument> create(@Valid @RequestBody KnowledgeDocument doc,
-                                        @AuthenticationPrincipal UserDetails principal) {
-        return R.ok(service.create(doc, principal.getUsername()));
+                                        @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.create(doc, principal.getUserId()));
     }
 
     @GetMapping("/documents")
