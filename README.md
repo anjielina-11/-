@@ -53,6 +53,42 @@ project/
 | 文件存储 | MinIO |
 | 部署 | Docker Compose |
 
+## 环境要求
+
+> 每人按自己负责的模块安装，装完打钩。版本统一避免出问题。
+
+### 所有人必备
+
+| 工具 | 版本 | 安装方式 | 已装? |
+|------|------|------|:--:|
+| Git | 最新 | `winget install Git.Git` 或 [git-scm.com](https://git-scm.com) | |
+| Docker Desktop | 最新 | `winget install Docker.DockerDesktop` 或 [docker.com](https://docker.com) | |
+
+### 后端 (backend/)
+
+| 工具 | 版本 | 安装方式 | 已装? |
+|------|------|------|:--:|
+| JDK | **21** | `winget install EclipseAdoptium.Temurin.21.JDK` | |
+| Maven | 3.9+ | `winget install Apache.Maven.3` 或用 `backend/mvnw` | |
+
+### 前端 (frontend/)
+
+| 工具 | 版本 | 安装方式 | 已装? |
+|------|------|------|:--:|
+| Node.js | **20 LTS** | `winget install OpenJS.NodeJS.LTS` 或 [nodejs.org](https://nodejs.org) | |
+| npm | 10+ | 自带于 Node.js | |
+
+### AI 服务 (ai-service/)
+
+| 工具 | 版本 | 安装方式 | 已装? |
+|------|------|------|:--:|
+| Python | **3.9+** | `winget install Python.Python.3.12` 或 [python.org](https://python.org) | |
+| pip | 最新 | 自带于 Python | |
+
+> 装完 `cd ai-service && pip install -r requirements.txt` 即可。
+
+---
+
 ## 当前进度
 
 > 请在自己负责的模块后面打钩，改了东西就更新这个表。
