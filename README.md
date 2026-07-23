@@ -9,7 +9,12 @@
 ```
 project/
 ├── frontend/          ← 前端 (Vue 3 + Vite + Element Plus)
-│   └── src/views/        16 个页面 (Dashboard/FarmList/DiseaseUpload/...)
+│   └── src/
+│       ├── views/        16 个页面 (Dashboard/FarmList/DiseaseUpload/...)
+│       ├── components/   公共组件 (Sidebar 等)
+│       ├── router/       路由配置
+│       ├── stores/       Pinia 状态管理
+│       └── utils/        工具函数
 │
 ├── backend/           ← 业务后端 (Spring Boot + MyBatis-Plus)
 │   └── src/main/java/com/yunong/module/
@@ -25,15 +30,25 @@ project/
 │       ├── model/        模型版本管理
 │       ├── agent/        Agent 运行记录
 │       ├── review/       审核队列
+│       ├── system/       系统定时任务
 │       └── user/         用户管理
 │
-├── ai-service/        ← AI 服务 (Python + FastAPI)
-│   └── src/
-│       ├── api/          diagnosis.py / rag.py / weather.py
-│       ├── services/     agent_service / rag_service / inference_service
-│       ├── core/         config.py
-│       ├── models/       schemas.py
-│       └── tests/
+├── ai-service/        ← AI 服务 (Python + FastAPI + PyTorch)
+│   ├── src/
+│   │   ├── api/          diagnosis.py / rag.py / weather.py
+│   │   ├── services/     inference / agent / rag / weather / diagnosis / data_loader
+│   │   ├── core/         config.py
+│   │   ├── models/       schemas.py
+│   │   └── tests/
+│   ├── data/             训练数据 (train/ + val/, 共 18 类病害)
+│   ├── scripts/          辅助脚本 (数据合成等)
+│   ├── tests/            单元测试
+│   ├── uploads/          上传图片存储
+│   ├── best_model.pth    ResNet50 模型权重
+│   ├── class_to_idx.pth 类别索引映射
+│   ├── train.py          模型训练脚本
+│   ├── prepare_data.py   数据划分脚本
+│   └── requirements.txt
 │
 ├── data-pipeline/     ← 数据管道 (定时采集天气/市场/通报)
 ├── deploy/            ← Docker Compose (PG + Redis + MinIO + Backend)
@@ -97,7 +112,7 @@ project/
 |------|:--:|:--:|------|
 | `backend/` 业务后端 | 王艺霖 | 🟢 基本完成 | 配合前端联调, 补测试 |
 | `frontend/` 前端 | | 🟡 页面完成 | 关 mock 对接真实 API, 补测试 |
-| `ai-service/` AI服务 | | 🟡 代码完成 | 补模型权重(.pth), 补知识库文档 |
+| `ai-service/` AI服务 | | 🟢 代码+模型就绪 | 补知识库文档, 完善 RAG 向量化 |
 | `data-pipeline/` 数据管道 | | 🔴 未开始 | 天气/市场/通报定时采集脚本 |
 | `tests/` 测试 | | 🔴 未开始 | 单元/集成/E2E/性能测试 |
 | `deploy/` 部署 | 王艺霖 | 🟢 基础设施可用 | 补前端/AI容器化 |
@@ -130,6 +145,9 @@ pip install -r requirements.txt
 uvicorn src.main:app --reload --port 8000
 ```
 
+> **注意**: 首次启动前确保 `best_model.pth` 和 `class_to_idx.pth` 存在。
+> 如需重新训练模型：`python train.py --train-dir data/train --val-dir data/val --epochs 10`
+
 ### 4. 访问
 
 | 服务 | 地址 |
@@ -145,6 +163,7 @@ uvicorn src.main:app --reload --port 8000
 
 | 日期 | 谁 | 改了什么 |
 |------|:--:|------|
+| 07-23 | | 合并 github 版本: 补全模型权重(best_model.pth)、18 类训练数据、训练/数据划分脚本、data_loader、上传测试图, 更新 README |
 | 07-23 | 王艺霖 | 后端完成, 项目结构调整, 合并前端组员代码, admin 密码 hash 修复 |
 | 07-22 | | 前端 16 页面完成 (mock 模式) |
 | 07-22 | | AI 服务代码提交 (FastAPI + RAG + Agent) |

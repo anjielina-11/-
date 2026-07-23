@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     
     MODEL_PATH: str = "best_model.pth"
     CLASS_TO_IDX_PATH: str = "class_to_idx.pth"
-    NUM_CLASSES: int = 10
+    NUM_CLASSES: int = 18
     CONFIDENCE_THRESHOLD: float = 0.6
     
     RAG_VECTOR_DB_PATH: str = "chroma_db"
