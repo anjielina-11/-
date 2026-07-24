@@ -34,7 +34,7 @@ __pycache__/
 venv/
 *.egg-info/
 
-# AI 模型文件 (太大, 用 Git LFS 或单独存储)
+# AI 模型文件（默认忽略，交付模型显式纳入仓库）
 *.pth
 *.pt
 *.h5

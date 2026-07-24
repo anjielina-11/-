@@ -14,12 +14,7 @@
 
 ## 一键启动
 
-环境要求：Docker Desktop、Git LFS。首次克隆后执行：
-
-```powershell
-git lfs install
-git lfs pull
-```
+环境要求：Docker Desktop。
 
 ```powershell
 docker compose -f deploy/docker-compose.yml up -d --build

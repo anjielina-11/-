@@ -1,2 +1,0 @@
-ai-service/best_model.pth filter=lfs diff=lfs merge=lfs -text
-ai-service/class_to_idx.pth filter=lfs diff=lfs merge=lfs -text
