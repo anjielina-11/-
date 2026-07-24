@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -27,8 +28,10 @@ public class TaskService {
         return task;
     }
 
-    public PageResult<FarmingTask> list(int page, int size, String status, String assigneeId, String taskType) {
+    public PageResult<FarmingTask> list(int page, int size, String status, String assigneeId, String taskType,
+                                        String currentUserId, boolean privileged) {
         var wrapper = new LambdaQueryWrapper<FarmingTask>();
+        if (!privileged) wrapper.eq(FarmingTask::getAssigneeId, currentUserId);
         if (status != null) wrapper.eq(FarmingTask::getStatus, status);
         if (assigneeId != null) wrapper.eq(FarmingTask::getAssigneeId, assigneeId);
         if (taskType != null) wrapper.eq(FarmingTask::getTaskType, taskType);
@@ -37,9 +40,10 @@ public class TaskService {
         return PageResult.of(result.getRecords(), result.getTotal());
     }
 
-    public FarmingTask update(String id, FarmingTask update) {
+    public FarmingTask update(String id, FarmingTask update, String currentUserId, boolean privileged) {
         var task = mapper.selectById(id);
         if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        assertAssignee(task, currentUserId, privileged);
         if (update.getTitle() != null) task.setTitle(update.getTitle());
         if (update.getDescription() != null) task.setDescription(update.getDescription());
         if (update.getScheduledDate() != null) task.setScheduledDate(update.getScheduledDate());
@@ -49,13 +53,21 @@ public class TaskService {
         return task;
     }
 
-    public FarmingTask updateStatus(String id, String status) {
+    public FarmingTask updateStatus(String id, String status, String currentUserId, boolean privileged) {
+        if (!Set.of("pending", "in_progress", "completed", "cancelled").contains(status))
+            throw new BusinessException(ErrorCode.TASK_STATUS_INVALID);
         var task = mapper.selectById(id);
         if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        assertAssignee(task, currentUserId, privileged);
         task.setStatus(status);
         if ("completed".equals(status)) task.setCompletedAt(LocalDateTime.now());
         mapper.updateById(task);
         return task;
+    }
+
+    private void assertAssignee(FarmingTask task, String currentUserId, boolean privileged) {
+        if (!privileged && !currentUserId.equals(task.getAssigneeId()))
+            throw new BusinessException(ErrorCode.NOT_TASK_ASSIGNEE);
     }
 
     public List<FarmingTask> calendar(int year, int month, String assigneeId) {

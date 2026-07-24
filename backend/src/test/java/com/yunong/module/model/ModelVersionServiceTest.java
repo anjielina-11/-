@@ -76,4 +76,27 @@ class ModelVersionServiceTest {
         var result = service.create(mv);
         assertThat(result.getAccuracy()).isEqualTo(new BigDecimal("0.945"));
     }
+
+    @Test
+    @DisplayName("更新模型版本指标")
+    void updateModelVersion() {
+        var existing = new ModelVersion();
+        existing.setId("mv-001");
+        existing.setModelName("classifier");
+        existing.setVersion("1.0.0");
+        existing.setStatus("draft");
+        when(mapper.selectById("mv-001")).thenReturn(existing);
+
+        var update = new ModelVersion();
+        update.setVersion("1.0.1");
+        update.setAccuracy(new BigDecimal("0.95"));
+
+        var result = service.update("mv-001", update);
+
+        assertThat(result.getModelName()).isEqualTo("classifier");
+        assertThat(result.getVersion()).isEqualTo("1.0.1");
+        assertThat(result.getAccuracy()).isEqualTo(new BigDecimal("0.95"));
+        verify(mapper).updateById(existing);
+    }
+
 }

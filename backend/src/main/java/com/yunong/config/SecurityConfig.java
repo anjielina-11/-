@@ -61,6 +61,7 @@ public class SecurityConfig {
                         // ===== 合作社管理及以上 =====
                         .requestMatchers("/api/v1/monitor/**").hasAnyRole("COOP_MANAGER", "ADMIN")
                         // ===== 仅管理员 =====
+                        .requestMatchers("/api/v1/users/me").authenticated()
                         .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/model-versions/**").hasRole("ADMIN")
                         // ===== 兜底：已认证可访问 =====

@@ -59,14 +59,25 @@ public class CropController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String fieldId,
-            @RequestParam(required = false) String status) {
-        return R.ok(service.listCycles(page, size, fieldId, status));
+            @RequestParam(required = false) String status,
+            @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.listCycles(page, size, fieldId, status, principal.getUserId()));
+    }
+
+    @DeleteMapping("/planting-cycles/{id}")
+    @AuditLog(action = "删除种植周期")
+    @Operation(summary = "删除种植周期")
+    public R<Void> deleteCycle(@PathVariable String id,
+                               @AuthenticationPrincipal UserDetailsImpl principal) {
+        service.deleteCycle(id, principal.getUserId());
+        return R.ok();
     }
 
     @PutMapping("/planting-cycles/{id}")
     @AuditLog(action = "更新种植周期")
     @Operation(summary = "更新种植周期(生育期)")
-    public R<PlantingCycle> updateCycle(@PathVariable String id, @RequestBody PlantingCycle update) {
-        return R.ok(service.updateCycle(id, update));
+    public R<PlantingCycle> updateCycle(@PathVariable String id, @RequestBody PlantingCycle update,
+                                        @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.updateCycle(id, update, principal.getUserId()));
     }
 }

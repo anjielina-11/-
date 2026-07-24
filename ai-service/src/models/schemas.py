@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 
 class WeatherInfo(BaseModel):
@@ -46,6 +46,20 @@ class DiseaseAdviceResponse(BaseModel):
     advice: str = Field(..., description="生成的综合防治建议")
     references: List[ReferenceSource] = Field([], description="参考资料列表")
     weather_info: str = Field("", description="天气信息")
+
+
+class AdviceRequest(BaseModel):
+    disease_name: str = Field(..., description="病害名称")
+    confidence: float = Field(..., ge=0, le=1, description="识别置信度")
+    crop_info: str = Field("未知作物", description="作物信息")
+    weather_info: str = Field("未知天气", description="天气信息")
+    citations: List[Dict[str, Any]] = Field(default_factory=list, description="RAG 引用")
+
+
+class AdviceResponse(BaseModel):
+    advice: str
+    references: List[Dict[str, Any]] = Field(default_factory=list)
+    weather_info: str = "未知天气"
 
 
 class PendingReviewResponse(BaseModel):

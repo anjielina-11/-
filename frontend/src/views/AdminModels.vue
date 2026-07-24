@@ -6,6 +6,8 @@ import {
 } from 'element-plus'
 import { Edit, Delete, Upload, Loading, CircleClose, TrendCharts } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import request from '@/utils/request'
+import { percentToRatio, ratioToPercent } from '@/utils/domainMappers'
 
 interface ModelVersion {
   id: string
@@ -20,15 +22,7 @@ interface ModelVersion {
   description?: string
 }
 
-const mockModels: ModelVersion[] = [
-  { id: '1', name: '病害识别模型', version: 'v2.1.0', type: 'classification', status: 'deployed', accuracy: 96.5, recall: 95.8, f1Score: 96.1, trainDate: '2026-07-15', description: '支持20种常见农作物病害识别' },
-  { id: '2', name: '害虫检测模型', version: 'v1.3.0', type: 'detection', status: 'deployed', accuracy: 94.2, recall: 93.5, f1Score: 93.8, trainDate: '2026-06-20', description: '检测15种主要农业害虫' },
-  { id: '3', name: '病害识别模型', version: 'v2.0.0', type: 'classification', status: 'deprecated', accuracy: 92.8, recall: 91.5, f1Score: 92.1, trainDate: '2026-03-10', description: '旧版本，已被v2.1.0替代' },
-  { id: '4', name: '作物分类模型', version: 'v1.0.0', type: 'classification', status: 'training', accuracy: 0, recall: 0, f1Score: 0, trainDate: '2026-07-22', description: '训练中...预计2天完成' },
-  { id: '5', name: '杂草识别模型', version: 'v1.1.0', type: 'segmentation', status: 'deployed', accuracy: 89.5, recall: 88.2, f1Score: 88.8, trainDate: '2026-05-05', description: '支持10种常见杂草识别' }
-]
-
-const models = ref<ModelVersion[]>([...mockModels])
+const models = ref<ModelVersion[]>([])
 const dialogVisible = ref(false)
 const editMode = ref(false)
 const formData = ref<ModelVersion>({
@@ -86,34 +80,80 @@ const handleAdd = () => {
   dialogVisible.value = true
 }
 
+const loadModels = async () => {
+  try {
+    const page = await request.get<{ list: Array<{
+      id: string
+      modelName: string
+      modelType: ModelVersion['type']
+      version: string
+      status: ModelVersion['status']
+      accuracy: number
+      recallVal: number
+      f1Score: number
+      createdAt: string
+      description?: string
+    }>; total: number }>('/model-versions?size=50')
+    models.value = page.list.map(item => ({
+      id: item.id,
+      name: item.modelName,
+      version: item.version,
+      type: item.modelType,
+      status: item.status,
+      accuracy: ratioToPercent(item.accuracy),
+      recall: ratioToPercent(item.recallVal),
+      f1Score: ratioToPercent(item.f1Score),
+      trainDate: item.createdAt,
+      description: item.description
+    }))
+    updateChart()
+  } catch {
+    ElMessage.error('获取模型列表失败')
+  }
+}
+
 const handleEdit = (row: ModelVersion) => {
   editMode.value = true
   formData.value = { ...row }
   dialogVisible.value = true
 }
 
-const handleDelete = (id: string) => {
-  models.value = models.value.filter(m => m.id !== id)
-  ElMessage.success('删除成功')
-  updateChart()
+const handleDelete = async (id: string) => {
+  try {
+    await request.delete('/model-versions/' + id)
+    models.value = models.value.filter(m => m.id !== id)
+    ElMessage.success('删除成功')
+    updateChart()
+  } catch {
+    ElMessage.error('删除失败')
+  }
 }
 
-const handleSubmit = () => {
-  const now = new Date().toISOString().split('T')[0]
-  if (editMode.value) {
-    const index = models.value.findIndex(m => m.id === formData.value.id)
-    if (index !== -1) {
-      models.value[index] = { ...formData.value }
-      ElMessage.success('修改成功')
+const handleSubmit = async () => {
+  try {
+    const payload = {
+      modelName: formData.value.name,
+      modelType: formData.value.type,
+      version: formData.value.version,
+      accuracy: percentToRatio(formData.value.accuracy),
+      precisionVal: percentToRatio(formData.value.recall),
+      recallVal: percentToRatio(formData.value.recall),
+      f1Score: percentToRatio(formData.value.f1Score),
+      description: formData.value.description,
+      status: formData.value.status
     }
-  } else {
-    formData.value.id = String(Date.now())
-    formData.value.trainDate = now
-    models.value.unshift({ ...formData.value })
-    ElMessage.success('添加成功')
+    if (editMode.value) {
+      await request.put('/model-versions/' + formData.value.id, payload)
+      ElMessage.success('修改成功')
+    } else {
+      await request.post('/model-versions', payload)
+      ElMessage.success('添加成功')
+    }
+    dialogVisible.value = false
+    loadModels()
+  } catch {
+    ElMessage.error(editMode.value ? '修改失败' : '添加失败')
   }
-  dialogVisible.value = false
-  updateChart()
 }
 
 const initChart = () => {
@@ -244,6 +284,7 @@ const handleResize = () => {
 }
 
 onMounted(() => {
+  loadModels()
   nextTick(() => {
     initChart()
   })

@@ -4,7 +4,10 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yunong.exception.BusinessException;
 import com.yunong.exception.ErrorCode;
-import com.yunong.module.auth.dto.*;
+import com.yunong.module.auth.dto.LoginRequest;
+import com.yunong.module.auth.dto.LoginResponse;
+import com.yunong.module.auth.dto.RefreshRequest;
+import com.yunong.module.auth.dto.RegisterRequest;
 import com.yunong.module.auth.entity.User;
 import com.yunong.module.auth.mapper.UserMapper;
 import com.yunong.security.JwtTokenProvider;
@@ -18,7 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -31,35 +33,29 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
 
     public LoginResponse login(LoginRequest request) {
-        var authToken = new UsernamePasswordAuthenticationToken(
-                request.getUsername(), request.getPassword());
+        var authToken = new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword());
         var authentication = authenticationManager.authenticate(authToken);
-
         var userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        String accessToken = jwtTokenProvider.generateAccessToken(authentication);
 
-        // 更新最后登录时间
         var user = userMapper.selectById(userDetails.getUserId());
         if (user != null) {
             user.setLastLoginAt(LocalDateTime.now());
             userMapper.updateById(user);
+        } else {
+            user = toUser(userDetails);
         }
 
-        return new LoginResponse(
-                accessToken,
-                userDetails.getUsername(),
-                normalizeRole(userDetails.getRole())
-        );
+        String accessToken = jwtTokenProvider.generateAccessToken(authentication);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(userDetails.getUserId());
+        return response(accessToken, refreshToken, user);
     }
 
     @Transactional
     public LoginResponse register(RegisterRequest request) {
-        // 检查用户名是否存在
         if (userMapper.selectCount(new LambdaQueryWrapper<User>()
                 .eq(User::getUsername, request.getUsername())) > 0) {
             throw new BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS);
         }
-        // 检查手机号
         if (StrUtil.isNotBlank(request.getPhone()) &&
                 userMapper.selectCount(new LambdaQueryWrapper<User>()
                         .eq(User::getPhone, request.getPhone())) > 0) {
@@ -72,19 +68,16 @@ public class AuthService {
         user.setRealName(request.getRealName());
         user.setPhone(request.getPhone());
         user.setEmail(request.getEmail());
-        user.setRole(StrUtil.isNotBlank(request.getRole()) ? request.getRole() : "ROLE_FARMER");
+        // 公开注册只允许创建农户，防止通过请求体提升权限。
+        user.setRole("ROLE_FARMER");
         user.setStatus(1);
         userMapper.insert(user);
 
-        // 直接登录
-        var authToken = new UsernamePasswordAuthenticationToken(
-                request.getUsername(), request.getPassword());
+        var authToken = new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword());
         var authentication = authenticationManager.authenticate(authToken);
-
         String accessToken = jwtTokenProvider.generateAccessToken(authentication);
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
-
-        return new LoginResponse(accessToken, user.getUsername(), normalizeRole(user.getRole()));
+        return response(accessToken, refreshToken, user);
     }
 
     public LoginResponse refresh(RefreshRequest request) {
@@ -97,9 +90,7 @@ public class AuthService {
         }
         String userId = claims.getSubject();
         var user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
-        }
+        if (user == null) throw new BusinessException(ErrorCode.USER_NOT_FOUND);
 
         var userDetails = new UserDetailsImpl();
         userDetails.setUserId(user.getId());
@@ -110,14 +101,29 @@ public class AuthService {
 
         var auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
         String accessToken = jwtTokenProvider.generateAccessToken(auth);
-        jwtTokenProvider.generateRefreshToken(userId); // rotate refresh token
-
-        return new LoginResponse(accessToken, user.getUsername(), normalizeRole(user.getRole()));
+        String refreshToken = jwtTokenProvider.generateRefreshToken(userId);
+        return response(accessToken, refreshToken, user);
     }
 
-    /** 将 ROLE_FARMER → farmer, ROLE_TECHNICIAN → technician 等 */
+    private LoginResponse response(String accessToken, String refreshToken, User user) {
+        return new LoginResponse(accessToken, refreshToken, new LoginResponse.UserInfo(
+                user.getId(), user.getUsername(), normalizeRole(user.getRole()), user.getRealName()));
+    }
+
+    private User toUser(UserDetailsImpl details) {
+        var user = new User();
+        user.setId(details.getUserId());
+        user.setUsername(details.getUsername());
+        user.setRole(details.getRole());
+        return user;
+    }
+
     private String normalizeRole(String role) {
         if (role == null) return null;
-        return role.replace("ROLE_", "").toLowerCase();
+        return switch (role.replace("ROLE_", "").toUpperCase()) {
+            case "TECHNICIAN" -> "tech";
+            case "COOP_MANAGER" -> "coop";
+            default -> role.replace("ROLE_", "").toLowerCase();
+        };
     }
 }

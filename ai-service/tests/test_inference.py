@@ -2,7 +2,7 @@ import pytest
 import torch
 from PIL import Image
 from io import BytesIO
-from services.inference_service import DiseaseClassifier, UnknownDiseaseError
+from src.services.inference_service import DiseaseClassifier, UnknownDiseaseError
 
 
 @pytest.fixture

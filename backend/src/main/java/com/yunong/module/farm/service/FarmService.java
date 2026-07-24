@@ -36,14 +36,15 @@ public class FarmService {
         return PageResult.of(result.getRecords(), result.getTotal());
     }
 
-    public Farm getById(String id) {
+    public Farm getById(String id, String ownerId) {
         var farm = farmMapper.selectById(id);
         if (farm == null) throw new BusinessException(ErrorCode.FARM_NOT_FOUND);
+        if (!farm.getOwnerId().equals(ownerId)) throw new BusinessException(ErrorCode.NOT_FARM_OWNER);
         return farm;
     }
 
-    public Farm update(String id, Farm update) {
-        var farm = getById(id);
+    public Farm update(String id, Farm update, String ownerId) {
+        var farm = getById(id, ownerId);
         if (update.getName() != null) farm.setName(update.getName());
         if (update.getAddress() != null) farm.setAddress(update.getAddress());
         if (update.getAreaMu() != null) farm.setAreaMu(update.getAreaMu());
@@ -53,15 +54,41 @@ public class FarmService {
         return farm;
     }
 
-    public Field addField(String farmId, Field field) {
-        if (farmMapper.selectById(farmId) == null) throw new BusinessException(ErrorCode.FARM_NOT_FOUND);
+    public Field addField(String farmId, Field field, String ownerId) {
+        getById(farmId, ownerId);
         field.setFarmId(farmId);
         fieldMapper.insert(field);
         return field;
     }
 
-    public List<Field> listFields(String farmId) {
+    public List<Field> listFields(String farmId, String ownerId) {
+        getById(farmId, ownerId);
         return fieldMapper.selectList(new LambdaQueryWrapper<Field>()
                 .eq(Field::getFarmId, farmId).orderByDesc(Field::getCreatedAt));
+    }
+
+    public Field updateField(String farmId, String fieldId, Field update, String ownerId) {
+        getById(farmId, ownerId);
+        var field = getField(farmId, fieldId);
+        if (update.getName() != null) field.setName(update.getName());
+        if (update.getAreaMu() != null) field.setAreaMu(update.getAreaMu());
+        if (update.getSoilType() != null) field.setSoilType(update.getSoilType());
+        if (update.getRemark() != null) field.setRemark(update.getRemark());
+        fieldMapper.updateById(field);
+        return field;
+    }
+
+    public void deleteField(String farmId, String fieldId, String ownerId) {
+        getById(farmId, ownerId);
+        getField(farmId, fieldId);
+        fieldMapper.deleteById(fieldId);
+    }
+
+    private Field getField(String farmId, String fieldId) {
+        var field = fieldMapper.selectById(fieldId);
+        if (field == null || !farmId.equals(field.getFarmId())) {
+            throw new BusinessException(ErrorCode.FIELD_NOT_FOUND);
+        }
+        return field;
     }
 }

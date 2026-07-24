@@ -15,6 +15,24 @@ interface CustomAxiosInstance extends AxiosInstance {
   delete<T = unknown>(url: string, config?: RequestConfig): Promise<T>
 }
 
+interface ApiResponse<T> {
+  code: number
+  message?: string | null
+  data: T
+}
+
+const isApiResponse = <T>(value: unknown): value is ApiResponse<T> => {
+  return typeof value === 'object' && value !== null &&
+    typeof (value as Partial<ApiResponse<T>>).code === 'number' &&
+    'data' in value
+}
+
+export const unwrapApiResponse = <T>(value: ApiResponse<T> | T): T => {
+  if (!isApiResponse<T>(value)) return value as T
+  if (value.code !== 0) throw new Error(value.message || `业务请求失败（code=${value.code}）`)
+  return value.data
+}
+
 const service = axios.create({
   baseURL: '/api/v1',
   timeout: 10000
@@ -23,45 +41,41 @@ const service = axios.create({
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const userStore = useUserStore()
-    if (userStore.token) {
-      config.headers.Authorization = `Bearer ${userStore.token}`
-    }
+    if (userStore.token) config.headers.Authorization = `Bearer ${userStore.token}`
     return config
   },
-  (error) => {
-    return Promise.reject(error)
-  }
+  error => Promise.reject(error)
 )
 
 service.interceptors.response.use(
-  (response: AxiosResponse) => {
-    return response.data
-  },
+  (response: AxiosResponse) => unwrapApiResponse(response.data),
   (error: AxiosError) => {
     if (error.response) {
+      const message = (error.response.data as { message?: string })?.message
       switch (error.response.status) {
-        case 401:
-          ElMessage.error('登录已过期，请重新登录')
+        case 401: {
+        ElMessage.error(message || '登录已过期，请重新登录')
           const userStore = useUserStore()
           userStore.logout()
-          router.push('/login')
+          void router.push('/login')
           break
+        }
         case 403:
-          ElMessage.error('没有权限访问此资源')
+        ElMessage.error(message || '没有权限执行此操作')
           break
         case 404:
-          ElMessage.error('请求的资源不存在')
+        ElMessage.error(message || '请求的资源不存在')
           break
         case 500:
-          ElMessage.error('服务器内部错误')
+        ElMessage.error(message || '服务器内部错误')
           break
         default:
-          ElMessage.error((error.response.data as { message?: string })?.message || '请求失败')
+        ElMessage.error(message || '请求失败')
       }
     } else if (error.request) {
-      ElMessage.error('网络请求失败，请检查网络连接')
+      ElMessage.error('网络连接失败，请检查网络')
     } else {
-      ElMessage.error('请求配置错误')
+      ElMessage.error(error.message || '请求配置错误')
     }
     return Promise.reject(error)
   }

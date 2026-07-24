@@ -1,169 +1,91 @@
 # 云南特色农业智能诊断与生产管理平台
 
-## 项目简介
+面向云南特色农业的 AI 辅助诊断与生产管理平台，覆盖“地块 → 作物 → 图片 → 模型 → RAG → Agent → 审核 → 任务 → 效果跟踪”业务闭环。
 
-面向云南特色农业的 AI 辅助诊断与生产管理平台。农户上传作物图片 → AI 识别病害 → RAG 检索农技规范 → Agent 生成防治建议 → 农技人员审核 → 生成农事任务 → 跟踪处置效果。
-
-## 目录结构
-
-```
-project/
-├── frontend/          ← 前端 (Vue 3 + Vite + Element Plus)
-│   └── src/
-│       ├── views/        16 个页面 (Dashboard/FarmList/DiseaseUpload/...)
-│       ├── components/   公共组件 (Sidebar 等)
-│       ├── router/       路由配置
-│       ├── stores/       Pinia 状态管理
-│       └── utils/        工具函数
-│
-├── backend/           ← 业务后端 (Spring Boot + MyBatis-Plus)
-│   └── src/main/java/com/yunong/module/
-│       ├── auth/         认证模块 (登录/注册/JWT)
-│       ├── farm/         农场 & 地块管理
-│       ├── crop/         作物 & 种植周期
-│       ├── diagnosis/    病害诊断 (上传/推理/审核)
-│       ├── task/         农事任务
-│       ├── knowledge/    知识库
-│       ├── market/       市场价格
-│       ├── weather/      天气数据
-│       ├── monitor/      模型监控 (数据漂移/未知样本)
-│       ├── model/        模型版本管理
-│       ├── agent/        Agent 运行记录
-│       ├── review/       审核队列
-│       ├── system/       系统定时任务
-│       └── user/         用户管理
-│
-├── ai-service/        ← AI 服务 (Python + FastAPI + PyTorch)
-│   ├── src/
-│   │   ├── api/          diagnosis.py / rag.py / weather.py
-│   │   ├── services/     inference / agent / rag / weather / diagnosis / data_loader
-│   │   ├── core/         config.py
-│   │   ├── models/       schemas.py
-│   │   └── tests/
-│   ├── data/             训练数据 (train/ + val/, 共 18 类病害)
-│   ├── scripts/          辅助脚本 (数据合成等)
-│   ├── tests/            单元测试
-│   ├── uploads/          上传图片存储
-│   ├── best_model.pth    ResNet50 模型权重
-│   ├── class_to_idx.pth 类别索引映射
-│   ├── train.py          模型训练脚本
-│   ├── prepare_data.py   数据划分脚本
-│   └── requirements.txt
-│
-├── data-pipeline/     ← 数据管道 (定时采集天气/市场/通报)
-├── deploy/            ← Docker Compose (PG + Redis + MinIO + Backend)
-├── tests/             ← 集成 & E2E 测试
-└── docs/              ← 需求文档 / API文档 / 设计文档
-```
-
-## 技术栈
+## 技术架构
 
 | 层 | 技术 |
-|----|------|
-| 前端 | Vue 3 + TypeScript + Vite + Pinia + Element Plus + ECharts |
-| 业务后端 | Spring Boot 3 + MyBatis-Plus + Flyway + Swagger |
-| AI 服务 | Python + FastAPI + LangChain + ChromaDB + sentence-transformers |
-| 数据库 | PostgreSQL 16 + PostGIS 3 + pgvector |
-| 缓存 | Redis 7 |
-| 文件存储 | MinIO |
-| 部署 | Docker Compose |
+|---|---|
+| 前端 | Vue 3、TypeScript、Vite、Pinia、Element Plus、ECharts |
+| 业务后端 | Spring Boot 3、MyBatis-Plus、Flyway、OpenAPI |
+| AI 服务 | FastAPI、PyTorch ResNet50、LangChain、ChromaDB |
+| 基础设施 | PostgreSQL/PostGIS/pgvector、Redis、MinIO、Nginx |
+| 测试 | Vitest、Playwright、JUnit 5、Pytest |
 
-## 环境要求
+## 一键启动
 
-> 每人按自己负责的模块安装，装完打钩。版本统一避免出问题。
+环境要求：Docker Desktop、Git LFS。首次克隆后执行：
 
-### 所有人必备
-
-| 工具 | 版本 | 安装方式 | 已装? |
-|------|------|------|:--:|
-| Git | 最新 | `winget install Git.Git` 或 [git-scm.com](https://git-scm.com) | |
-| Docker Desktop | 最新 | `winget install Docker.DockerDesktop` 或 [docker.com](https://docker.com) | |
-
-### 后端 (backend/)
-
-| 工具 | 版本 | 安装方式 | 已装? |
-|------|------|------|:--:|
-| JDK | **21** | `winget install EclipseAdoptium.Temurin.21.JDK` | |
-| Maven | 3.9+ | `winget install Apache.Maven.3` 或用 `backend/mvnw` | |
-
-### 前端 (frontend/)
-
-| 工具 | 版本 | 安装方式 | 已装? |
-|------|------|------|:--:|
-| Node.js | **20 LTS** | `winget install OpenJS.NodeJS.LTS` 或 [nodejs.org](https://nodejs.org) | |
-| npm | 10+ | 自带于 Node.js | |
-
-### AI 服务 (ai-service/)
-
-| 工具 | 版本 | 安装方式 | 已装? |
-|------|------|------|:--:|
-| Python | **3.9+** | `winget install Python.Python.3.12` 或 [python.org](https://python.org) | |
-| pip | 最新 | 自带于 Python | |
-
-> 装完 `cd ai-service && pip install -r requirements.txt` 即可。
-
----
-
-## 当前进度
-
-> 请在自己负责的模块后面打钩，改了东西就更新这个表。
-
-| 模块 | 负责人 | 状态 | 还差什么 |
-|------|:--:|:--:|------|
-| `backend/` 业务后端 | 王艺霖 | 🟢 基本完成 | 配合前端联调, 补测试 |
-| `frontend/` 前端 | | 🟡 页面完成 | 关 mock 对接真实 API, 补测试 |
-| `ai-service/` AI服务 | | 🟢 代码+模型就绪 | 补知识库文档, 完善 RAG 向量化 |
-| `data-pipeline/` 数据管道 | | 🔴 未开始 | 天气/市场/通报定时采集脚本 |
-| `tests/` 测试 | | 🔴 未开始 | 单元/集成/E2E/性能测试 |
-| `deploy/` 部署 | 王艺霖 | 🟢 基础设施可用 | 补前端/AI容器化 |
-
-## 快速开始
-
-### 1. 启动基础设施 + 后端
-
-```bash
-cd deploy
-docker compose up -d
+```powershell
+git lfs install
+git lfs pull
 ```
 
-### 2. 启动前端 (开发模式)
-
-```bash
-cd frontend
-npm install
-npm run dev
+```powershell
+docker compose -f deploy/docker-compose.yml up -d --build
 ```
 
-- Mock 模式 (默认): `VITE_MOCK_LOGIN=true` → 假数据登录, 不调后端
-- 真实模式: 改 `.env` 为 `VITE_MOCK_LOGIN=false` → 调后端 API
-
-### 3. 启动 AI 服务 (开发模式)
-
-```bash
-cd ai-service
-pip install -r requirements.txt
-uvicorn src.main:app --reload --port 8000
-```
-
-> **注意**: 首次启动前确保 `best_model.pth` 和 `class_to_idx.pth` 存在。
-> 如需重新训练模型：`python train.py --train-dir data/train --val-dir data/val --epochs 10`
-
-### 4. 访问
+启动完成后访问：
 
 | 服务 | 地址 |
-|------|------|
-| 前端 | http://localhost:5173 |
-| 后端 Swagger | http://localhost:8080/swagger-ui.html |
-| AI 服务 | http://localhost:8000 |
-| MinIO 控制台 | http://localhost:9001 |
+|---|---|
+| 系统入口 | http://localhost |
+| Swagger UI | http://localhost/swagger-ui.html |
+| OpenAPI JSON | http://localhost/api-docs |
+| Backend 健康检查 | http://localhost/actuator/health |
+| AI 健康检查 | http://localhost/ai/health |
 
-## 修改记录
+除 Nginx 前端入口外，Backend、AI、PostgreSQL、Redis 和 MinIO 均只在 Compose 内部网络开放。
 
-> 每次改完代码顺手记一行，方便其他人知道发生了什么。
+## 演示账号
 
-| 日期 | 谁 | 改了什么 |
-|------|:--:|------|
-| 07-23 | | 合并 github 版本: 补全模型权重(best_model.pth)、18 类训练数据、训练/数据划分脚本、data_loader、上传测试图, 更新 README |
-| 07-23 | 王艺霖 | 后端完成, 项目结构调整, 合并前端组员代码, admin 密码 hash 修复 |
-| 07-22 | | 前端 16 页面完成 (mock 模式) |
-| 07-22 | | AI 服务代码提交 (FastAPI + RAG + Agent) |
+| 角色 | 用户名 | 密码 |
+|---|---|---|
+| 农户 | `farmer` | `farmer123` |
+| 农技人员 | `tech` | `tech123` |
+| 合作社管理人员 | `coop` | `coop123` |
+| 管理员 | `admin` | `admin123` |
+
+## 核心演示流程
+
+1. 农户创建农场、地块和种植档案。
+2. 农户上传病害图片，Backend 保存至 MinIO 并异步调用 AI 服务。
+3. AI 完成 18 类病害分类、未知拒识、RAG 检索和 Agent 建议生成。
+4. 农技人员审核诊断，审核通过后自动生成农户防治任务。
+5. 农户执行任务、更新状态并提交防治效果反馈。
+
+## 本地验证
+
+```powershell
+# Frontend
+cd frontend
+npm.cmd test
+npm.cmd run build
+npm.cmd run test:e2e
+
+# Backend
+cd ..\backend
+mvn.cmd test
+mvn.cmd package -DskipTests
+
+# AI
+cd ..\ai-service
+.\.venv\Scripts\python.exe -m pytest -q
+
+# Integration
+cd ..
+.\ai-service\.venv\Scripts\python.exe -m pytest tests/integration/test_api.py -q
+```
+
+## 文档
+
+- `docs/requirements_specification.md`：需求规格说明书
+- `docs/system_design.md`：系统设计、ER 图、时序图、部署图
+- `docs/API_DOCS.md`：接口、鉴权和错误码
+- `docs/test_report.md`：最新测试报告
+- `docs/audit_report.md`：对照《期末任务》的验收审计报告
+- `docs/git_workflow.md`：Git 协作规范及本地可核验记录说明
+
+## 配置说明
+
+可复制 `deploy/.env.example` 后修改数据库、Redis、MinIO、JWT 和外部 LLM/API 配置。未配置 `LLM_API_KEY` 时，Agent 使用确定性建议模板，并将真实 RAG 检索内容附入建议供农技人员审核。

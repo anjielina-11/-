@@ -44,31 +44,53 @@ public class FarmController {
 
     @GetMapping("/{id}")
     @Operation(summary = "农场详情")
-    public R<Farm> getById(@PathVariable String id) {
-        return R.ok(service.getById(id));
+    public R<Farm> getById(@PathVariable String id,
+                           @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.getById(id, principal.getUserId()));
     }
 
     @PutMapping("/{id}")
     @AuditLog(action = "更新农场")
     @Operation(summary = "更新农场")
-    public R<Farm> update(@PathVariable String id, @RequestBody Farm update) {
-        return R.ok(service.update(id, update));
+    public R<Farm> update(@PathVariable String id, @RequestBody Farm update,
+                          @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.update(id, update, principal.getUserId()));
     }
 
     @PostMapping("/{farmId}/fields")
     @AuditLog(action = "添加地块")
     @Operation(summary = "添加地块")
-    public R<Field> addField(@PathVariable String farmId, @Valid @RequestBody Field field) {
-        return R.ok(service.addField(farmId, field));
+    public R<Field> addField(@PathVariable String farmId, @Valid @RequestBody Field field,
+                             @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.addField(farmId, field, principal.getUserId()));
     }
 
     @GetMapping("/{farmId}/fields")
     @Operation(summary = "地块列表")
-    public R<PageResult<FieldDTO>> listFields(@PathVariable String farmId) {
-        var fields = service.listFields(farmId);
+    public R<PageResult<FieldDTO>> listFields(@PathVariable String farmId,
+                                              @AuthenticationPrincipal UserDetailsImpl principal) {
+        var fields = service.listFields(farmId, principal.getUserId());
         List<FieldDTO> list = fields.stream()
                 .map(f -> FieldDTO.from(f, null))
                 .collect(Collectors.toList());
         return R.ok(PageResult.of(list, list.size()));
+    }
+
+    @PutMapping("/{farmId}/fields/{fieldId}")
+    @AuditLog(action = "更新地块")
+    @Operation(summary = "更新地块")
+    public R<Field> updateField(@PathVariable String farmId, @PathVariable String fieldId,
+                                @RequestBody Field update,
+                                @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.updateField(farmId, fieldId, update, principal.getUserId()));
+    }
+
+    @DeleteMapping("/{farmId}/fields/{fieldId}")
+    @AuditLog(action = "删除地块")
+    @Operation(summary = "删除地块")
+    public R<Void> deleteField(@PathVariable String farmId, @PathVariable String fieldId,
+                               @AuthenticationPrincipal UserDetailsImpl principal) {
+        service.deleteField(farmId, fieldId, principal.getUserId());
+        return R.ok();
     }
 }

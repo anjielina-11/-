@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import {
   ElCard,
   ElUpload,
@@ -16,159 +16,145 @@ import {
 import { Delete, Refresh } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { useUserStore } from '@/stores/user'
+import { diagnosisProgress, diseaseDisplayName, markdownToPlainText, ratioToPercent } from '@/utils/domainMappers'
 
 interface UploadResponse {
   code: number
-  data: {
-    taskId: string
+  message?: string
+  data?: {
+    diagnosisId: string
+    observationId: string
+    imageUrl: string
+    status: string
   }
 }
 
 interface DiagnosisResultResponse {
-  code: number
-  data: {
-    taskId: string
-    status: 'pending' | 'processing' | 'completed' | 'failed'
-    progress: number
-    result?: {
-      diseaseName: string
-      confidence: number
-      suggestion: string
-    }
-    message?: string
-  }
+  status: 'pending' | 'processing' | 'completed' | 'need_review' | 'failed'
+  diseaseName?: string
+  confidence?: number
+  treatment?: string
 }
 
-interface Field {
+interface PlantingCycle {
   id: string
-  name: string
+  cropId: string
+  fieldId: string
+  plantingDate?: string
+  status: string
+}
+
+interface PageResult<T> {
+  list: T[]
+  total: number
 }
 
 const userStore = useUserStore()
-const fields = ref<Field[]>([])
-const fieldsLoading = ref(false)
+const plantingCycles = ref<PlantingCycle[]>([])
+const cyclesLoading = ref(false)
 
-const selectedField = ref('')
+const selectedCycle = ref('')
 const uploadedImageUrl = ref('')
-const uploadedFileId = ref('')
 const isUploading = ref(false)
+const uploadHeaders = computed(() => ({ Authorization: `Bearer ${userStore.token}` }))
 
 const taskId = ref('')
-const diagnosisStatus = ref<'pending' | 'processing' | 'completed' | 'failed' | ''>('')
-const diagnosisProgress = ref(0)
+const diagnosisStatus = ref<DiagnosisResultResponse['status'] | ''>('')
+const diagnosisProgressValue = ref(0)
 const diagnosisResult = ref<{ diseaseName: string; confidence: number; suggestion: string } | null>(null)
 
 let pollTimer: number | null = null
-
 const uploadUrl = '/api/v1/diagnosis/upload'
 
-const mockFarmerFields: Field[] = [
-  { id: '1', name: '水稻田A' },
-  { id: '2', name: '玉米地B' },
-  { id: '3', name: '蔬菜基地C' },
-  { id: '4', name: '水果园D' }
-]
-
-const fetchFields = async () => {
-  fieldsLoading.value = true
-
+const fetchCycles = async () => {
+  cyclesLoading.value = true
   try {
-    const useMock = import.meta.env.VITE_MOCK_LOGIN === 'true'
-
-    if (useMock) {
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      if (userStore.hasRole('farmer')) {
-        fields.value = mockFarmerFields
-      } else {
-        fields.value = []
-        ElMessage.warning('请以农户身份登录操作')
-      }
-    } else {
-      const farmResponse = await request.get<{ code: number; data: { list: { id: string; name: string }[] } }>('/farms')
-      if (farmResponse.code === 200 && farmResponse.data.list.length > 0) {
-        const farmId = farmResponse.data.list[0].id
-        const fieldsResponse = await request.get<{ code: number; data: { list: Field[] } }>(`/farms/${farmId}/fields`)
-        if (fieldsResponse.code === 200) {
-          fields.value = fieldsResponse.data.list
-        }
-      }
+    const page = await request.get<PageResult<PlantingCycle>>('/planting-cycles?size=100')
+    plantingCycles.value = page.list.filter(item => item.status !== 'completed')
+    if (plantingCycles.value.length === 0) {
+      ElMessage.warning('暂无可用种植周期，请先创建农场、地块和种植档案')
     }
-  } catch (error) {
-    ElMessage.error('获取地块列表失败')
+  } catch {
+    plantingCycles.value = []
+    ElMessage.error('加载种植周期失败')
   } finally {
-    fieldsLoading.value = false
+    cyclesLoading.value = false
   }
 }
 
 const beforeUpload = (file: UploadRawFile) => {
   const isImage = file.type === 'image/jpeg' || file.type === 'image/png'
   if (!isImage) {
-    ElMessage.error('只能上传 JPG/PNG 格式的图片')
+    ElMessage.error('仅支持 JPG/PNG 图片格式')
     return false
   }
-  const isLt10M = file.size / 1024 / 1024 < 10
-  if (!isLt10M) {
+  if (file.size / 1024 / 1024 >= 10) {
     ElMessage.error('图片大小不能超过 10MB')
     return false
   }
+  if (uploadedImageUrl.value.startsWith('blob:')) URL.revokeObjectURL(uploadedImageUrl.value)
+  uploadedImageUrl.value = URL.createObjectURL(file)
   isUploading.value = true
   return true
 }
 
 const handleUploadSuccess = (response: UploadResponse) => {
   isUploading.value = false
-  if (response.code === 200 && response.data) {
-    taskId.value = response.data.taskId
+  if (response.code === 0 && response.data?.diagnosisId) {
+    taskId.value = response.data.diagnosisId
     diagnosisStatus.value = 'processing'
-    diagnosisProgress.value = 10
+    diagnosisProgressValue.value = diagnosisProgress('processing')
     diagnosisResult.value = null
-    ElMessage.success('识别任务已提交')
+    ElMessage.success('图片上传成功，正在识别')
     startPolling()
-  } else {
-    ElMessage.error('图片上传失败')
+    return
   }
+  ElMessage.error(response.message || '图片上传失败')
 }
 
 const handleUploadError = () => {
   isUploading.value = false
-  ElMessage.error('图片上传失败')
+  ElMessage.error('上传请求失败，请检查网络后重试')
 }
 
 const handleRemove = () => {
+  if (uploadedImageUrl.value.startsWith('blob:')) URL.revokeObjectURL(uploadedImageUrl.value)
   uploadedImageUrl.value = ''
-  uploadedFileId.value = ''
 }
 
-
+const pollOnce = async () => {
+  if (!taskId.value) return
+  try {
+    const response = await request.get<DiagnosisResultResponse>(`/diagnosis/result/${taskId.value}`)
+    diagnosisStatus.value = response.status
+    diagnosisProgressValue.value = diagnosisProgress(response.status)
+    if (response.status === 'failed') {
+      stopPolling()
+      ElMessage.error('识别失败，请更换图片后重试')
+      return
+    }
+    if (response.status === 'completed' || response.status === 'need_review') {
+      diagnosisResult.value = {
+        diseaseName: diseaseDisplayName(response.diseaseName),
+        confidence: ratioToPercent(response.confidence),
+        suggestion: markdownToPlainText(response.treatment) || '暂无防治建议'
+      }
+      stopPolling()
+      ElMessage.success(response.status === 'need_review' ? '识别结果已进入人工审核队列' : '识别完成')
+    }
+  } catch (error) {
+    console.error('查询识别结果失败:', error)
+  }
+}
 
 const startPolling = () => {
   stopPolling()
-  pollTimer = window.setInterval(async () => {
-    try {
-      const response = await request.get<DiagnosisResultResponse>(`/diagnosis/result/${taskId.value}`)
-
-      if (response.code === 200 && response.data) {
-        diagnosisStatus.value = response.data.status
-        diagnosisProgress.value = response.data.progress
-
-        if (response.data.status === 'completed') {
-          diagnosisResult.value = response.data.result || null
-          stopPolling()
-          ElMessage.success('识别完成')
-        } else if (response.data.status === 'failed') {
-          stopPolling()
-          ElMessage.error(response.data.message || '识别失败')
-        }
-      }
-    } catch (error) {
-      console.error('轮询识别结果失败:', error)
-    }
-  }, 2000)
+  void pollOnce()
+  pollTimer = window.setInterval(pollOnce, 2000)
 }
 
 const stopPolling = () => {
-  if (pollTimer) {
+  if (pollTimer !== null) {
     clearInterval(pollTimer)
     pollTimer = null
   }
@@ -176,29 +162,28 @@ const stopPolling = () => {
 
 const handleReset = () => {
   stopPolling()
-  selectedField.value = ''
-  uploadedImageUrl.value = ''
-  uploadedFileId.value = ''
+  selectedCycle.value = ''
+  handleRemove()
   taskId.value = ''
   diagnosisStatus.value = ''
-  diagnosisProgress.value = 0
+  diagnosisProgressValue.value = 0
   diagnosisResult.value = null
 }
 
 const statusTextMap: Record<string, string> = {
-  '': '等待提交',
-  'pending': '排队中...',
-  'processing': '正在识别中...',
-  'completed': '识别完成',
-  'failed': '识别失败'
+  '': '等待上传',
+  pending: '等待处理...',
+  processing: 'AI 正在识别...',
+  completed: '识别完成',
+  need_review: '等待人工审核',
+  failed: '识别失败'
 }
 
-onMounted(() => {
-  fetchFields()
-})
+onMounted(fetchCycles)
 
 onUnmounted(() => {
   stopPolling()
+  handleRemove()
 })
 </script>
 
@@ -224,12 +209,12 @@ onUnmounted(() => {
           <div class="form-item">
             <label class="form-label">关联地块</label>
             <ElSelect
-              v-model="selectedField"
+              v-model="selectedCycle"
               placeholder="请选择地块"
               style="width: 100%"
-              :disabled="isUploading || fieldsLoading"
+              :disabled="isUploading || cyclesLoading"
             >
-              <ElOption v-for="field in fields" :key="field.id" :label="field.name" :value="field.id" />
+              <ElOption v-for="cycle in plantingCycles" :key="cycle.id" :label="`${cycle.plantingDate || '未填写种植日期'} · ${cycle.id.slice(0, 8)}`" :value="cycle.id" />
             </ElSelect>
           </div>
 
@@ -243,8 +228,9 @@ onUnmounted(() => {
                 :before-upload="beforeUpload"
                 :on-success="handleUploadSuccess"
                 :on-error="handleUploadError"
-                :disabled="isUploading || !selectedField"
-                :data="{ cycleId: selectedField }"
+                :disabled="isUploading || !selectedCycle"
+                :data="{ cycleId: selectedCycle }"
+                :headers="uploadHeaders"
                 drag
                 class="custom-upload"
               >
@@ -286,10 +272,10 @@ onUnmounted(() => {
             <div class="progress-ring">
               <ElProgress
                 type="circle"
-                :percentage="diagnosisProgress"
+                :percentage="diagnosisProgressValue"
                 :width="120"
                 :stroke-width="8"
-                :status="diagnosisStatus === 'completed' ? 'success' : diagnosisStatus === 'failed' ? 'exception' : undefined"
+                :status="diagnosisStatus === 'completed' ? 'success' : diagnosisStatus === 'need_review' ? 'warning' : undefined"
                 :color="diagnosisStatus === 'processing' ? 'var(--color-primary)' : undefined"
               />
             </div>
@@ -297,7 +283,7 @@ onUnmounted(() => {
               <div class="progress-status" :class="{
                 'status-processing': diagnosisStatus === 'processing',
                 'status-completed': diagnosisStatus === 'completed',
-                'status-failed': diagnosisStatus === 'failed'
+                'status-need-review': diagnosisStatus === 'need_review'
               }">
                 {{ statusTextMap[diagnosisStatus] }}
               </div>
@@ -591,7 +577,7 @@ onUnmounted(() => {
   color: var(--color-success);
 }
 
-.status-failed {
+.status-need-review {
   color: var(--color-danger);
 }
 

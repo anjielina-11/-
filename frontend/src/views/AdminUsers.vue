@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   ElTable, ElTableColumn, ElButton, ElDialog, ElForm, ElFormItem,
   ElInput, ElSelect, ElOption, ElMessage, ElTag
 } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Open, TurnOff, Delete } from '@element-plus/icons-vue'
+import request from '@/utils/request'
+import { normalizeBackendRole } from '@/stores/user'
 
 interface User {
   id: string
   username: string
+  password?: string
   name: string
   role: 'farmer' | 'tech' | 'coop' | 'admin'
   phone?: string
@@ -17,23 +20,29 @@ interface User {
   createdAt: string
 }
 
-const mockUsers: User[] = [
-  { id: '1', username: 'farmer', name: '张农户', role: 'farmer', phone: '13800138001', email: 'farmer@example.com', status: 'active', createdAt: '2026-01-15' },
-  { id: '2', username: 'tech', name: '李农技员', role: 'tech', phone: '13800138002', email: 'tech@example.com', status: 'active', createdAt: '2026-02-20' },
-  { id: '3', username: 'coop', name: '王合作社长', role: 'coop', phone: '13800138003', email: 'coop@example.com', status: 'active', createdAt: '2026-03-10' },
-  { id: '4', username: 'admin', name: '刘管理员', role: 'admin', phone: '13800138004', email: 'admin@example.com', status: 'active', createdAt: '2026-01-01' },
-  { id: '5', username: 'farmer2', name: '陈农户', role: 'farmer', phone: '13800138005', email: 'farmer2@example.com', status: 'inactive', createdAt: '2026-04-05' },
-  { id: '6', username: 'tech2', name: '赵农技员', role: 'tech', phone: '13800138006', email: 'tech2@example.com', status: 'active', createdAt: '2026-05-18' },
-  { id: '7', username: 'farmer3', name: '周农户', role: 'farmer', phone: '13800138007', email: 'farmer3@example.com', status: 'active', createdAt: '2026-06-22' },
-  { id: '8', username: 'coop2', name: '孙合作社长', role: 'coop', phone: '13800138008', email: 'coop2@example.com', status: 'inactive', createdAt: '2026-07-01' }
-]
+interface BackendUser {
+  id: string
+  username: string
+  realName?: string
+  role: string
+  phone?: string
+  email?: string
+  status?: number
+  createdAt?: string
+}
 
-const users = ref<User[]>([...mockUsers])
+interface PageResult<T> {
+  list: T[]
+  total: number
+}
+
+const users = ref<User[]>([])
 const dialogVisible = ref(false)
 const editMode = ref(false)
 const formData = ref<User>({
   id: '',
   username: '',
+  password: '',
   name: '',
   role: 'farmer',
   phone: '',
@@ -79,6 +88,7 @@ const handleAdd = () => {
   formData.value = {
     id: '',
     username: '',
+    password: '',
     name: '',
     role: 'farmer',
     phone: '',
@@ -89,37 +99,85 @@ const handleAdd = () => {
   dialogVisible.value = true
 }
 
+const loadUsers = async () => {
+  try {
+    const page = await request.get<PageResult<BackendUser>>('/users?size=100')
+    users.value = page.list.map(user => ({
+      id: user.id,
+      username: user.username,
+      name: user.realName || user.username,
+      role: normalizeBackendRole(user.role),
+      phone: user.phone,
+      email: user.email,
+      status: user.status === 0 ? 'inactive' : 'active',
+      createdAt: user.createdAt || ''
+    }))
+  } catch {
+    ElMessage.error('获取用户列表失败')
+  }
+}
+
 const handleEdit = (row: User) => {
   editMode.value = true
   formData.value = { ...row }
   dialogVisible.value = true
 }
 
-const handleDelete = (id: string) => {
-  users.value = users.value.filter(u => u.id !== id)
-  ElMessage.success('删除成功')
-}
-
-const handleToggleStatus = (row: User) => {
-  row.status = row.status === 'active' ? 'inactive' : 'active'
-  ElMessage.success(row.status === 'active' ? '已启用' : '已禁用')
-}
-
-const handleSubmit = () => {
-  if (editMode.value) {
-    const index = users.value.findIndex(u => u.id === formData.value.id)
-    if (index !== -1) {
-      users.value[index] = { ...formData.value }
-      ElMessage.success('修改成功')
-    }
-  } else {
-    formData.value.id = String(Date.now())
-    formData.value.createdAt = new Date().toISOString().split('T')[0]
-    users.value.unshift({ ...formData.value })
-    ElMessage.success('添加成功')
+const handleDelete = async (id: string) => {
+  try {
+    await request.put('/users/' + id + '/status', { status: 0 })
+    ElMessage.success('用户已禁用')
+    await loadUsers()
+  } catch {
+    ElMessage.error('禁用失败')
   }
-  dialogVisible.value = false
 }
+
+const handleToggleStatus = async (row: User) => {
+  try {
+    const status = row.status === 'active' ? 0 : 1
+    await request.put('/users/' + row.id + '/status', { status })
+    row.status = status === 1 ? 'active' : 'inactive'
+    ElMessage.success(row.status === 'active' ? '已启用' : '已禁用')
+  } catch {
+    ElMessage.error('操作失败')
+  }
+}
+
+const handleSubmit = async () => {
+  try {
+    if (editMode.value) {
+      await request.put('/users/' + formData.value.id, {
+        username: formData.value.username,
+        realName: formData.value.name,
+        phone: formData.value.phone,
+        email: formData.value.email,
+        role: formData.value.role,
+        status: formData.value.status === 'active' ? 1 : 0
+      })
+      ElMessage.success('修改成功')
+    } else {
+      await request.post('/users', {
+        username: formData.value.username,
+        password: formData.value.password,
+        realName: formData.value.name,
+        phone: formData.value.phone,
+        email: formData.value.email,
+        role: formData.value.role,
+        status: 1
+      })
+      ElMessage.success('添加成功')
+    }
+    dialogVisible.value = false
+    loadUsers()
+  } catch {
+    ElMessage.error(editMode.value ? '修改失败' : '添加失败')
+  }
+}
+
+onMounted(() => {
+  loadUsers()
+})
 </script>
 
 <template>
@@ -227,6 +285,9 @@ const handleSubmit = () => {
       <ElForm :model="formData" label-width="90px" label-position="right" class="dialog-form">
         <ElFormItem label="用户名" required>
           <ElInput v-model="formData.username" placeholder="请输入用户名" :disabled="editMode" />
+        </ElFormItem>
+        <ElFormItem v-if="!editMode" label="初始密码" required>
+          <ElInput v-model="formData.password" type="password" show-password placeholder="至少 6 位" />
         </ElFormItem>
         <ElFormItem label="姓名" required>
           <ElInput v-model="formData.name" placeholder="请输入姓名" />

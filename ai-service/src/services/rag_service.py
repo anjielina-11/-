@@ -1,5 +1,8 @@
 import os
 import ssl
+
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import DirectoryLoader, TextLoader, PyPDFLoader, Docx2txtLoader
 from langchain_community.vectorstores import Chroma
@@ -79,8 +82,10 @@ class RAGService:
     @classmethod
     def ingest_documents(cls, docs_dir: str):
         loaders = [
-            DirectoryLoader(docs_dir, glob="*.txt", loader_cls=TextLoader),
-            DirectoryLoader(docs_dir, glob="*.md", loader_cls=TextLoader),
+            DirectoryLoader(docs_dir, glob="*.txt", loader_cls=TextLoader,
+                            loader_kwargs={"encoding": "utf-8"}),
+            DirectoryLoader(docs_dir, glob="*.md", loader_cls=TextLoader,
+                            loader_kwargs={"encoding": "utf-8"}),
             DirectoryLoader(docs_dir, glob="*.pdf", loader_cls=PyPDFLoader),
             DirectoryLoader(docs_dir, glob="*.docx", loader_cls=Docx2txtLoader),
             DirectoryLoader(docs_dir, glob="*.doc", loader_cls=Docx2txtLoader),
@@ -114,6 +119,13 @@ class RAGService:
         cls._vector_store.persist()
 
         return len(split_docs)
+
+    @classmethod
+    def ensure_initialized(cls, docs_dir: str = "knowledge_docs") -> int:
+        vector_store = cls._get_vector_store()
+        if vector_store is not None and vector_store._collection.count() > 0:
+            return 0
+        return cls.ingest_documents(docs_dir)
 
     @classmethod
     def retrieve(cls, query: str, top_k: int = None) -> list:

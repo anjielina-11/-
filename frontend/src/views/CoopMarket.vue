@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { ElTable, ElTableColumn, ElTag, ElButton } from 'element-plus'
+import { ElTable, ElTableColumn, ElTag, ElButton, ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import { RefreshRight, Top, Bottom, Minus } from '@element-plus/icons-vue'
+import request from '@/utils/request'
 
 interface PriceItem {
   id: string
@@ -16,17 +17,6 @@ interface PriceItem {
   trend: 'up' | 'down' | 'stable'
 }
 
-const mockPrices: PriceItem[] = [
-  { id: '1', cropName: '水稻', unit: '元/公斤', currentPrice: 2.8, prevPrice: 2.6, change: 7.7, market: '昆明农产品市场', date: '2026-07-22', trend: 'up' },
-  { id: '2', cropName: '玉米', unit: '元/公斤', currentPrice: 1.9, prevPrice: 2.1, change: -9.5, market: '曲靖农贸市场', date: '2026-07-22', trend: 'down' },
-  { id: '3', cropName: '番茄', unit: '元/公斤', currentPrice: 5.2, prevPrice: 5.0, change: 4.0, market: '大理蔬菜批发市场', date: '2026-07-22', trend: 'up' },
-  { id: '4', cropName: '草莓', unit: '元/公斤', currentPrice: 35.0, prevPrice: 38.0, change: -7.9, market: '玉溪水果市场', date: '2026-07-21', trend: 'down' },
-  { id: '5', cropName: '黄瓜', unit: '元/公斤', currentPrice: 3.5, prevPrice: 3.5, change: 0, market: '楚雄农产品市场', date: '2026-07-22', trend: 'stable' },
-  { id: '6', cropName: '土豆', unit: '元/公斤', currentPrice: 2.2, prevPrice: 2.0, change: 10.0, market: '丽江农贸市场', date: '2026-07-22', trend: 'up' },
-  { id: '7', cropName: '白菜', unit: '元/公斤', currentPrice: 1.8, prevPrice: 2.0, change: -10.0, market: '普洱蔬菜市场', date: '2026-07-21', trend: 'down' },
-  { id: '8', cropName: '苹果', unit: '元/公斤', currentPrice: 8.5, prevPrice: 8.2, change: 3.7, market: '昭通水果市场', date: '2026-07-22', trend: 'up' }
-]
-
 const prices = ref<PriceItem[]>([])
 
 const chartRef1 = ref<HTMLDivElement | null>(null)
@@ -38,8 +28,40 @@ const upCount = computed(() => prices.value.filter(item => item.trend === 'up').
 const downCount = computed(() => prices.value.filter(item => item.trend === 'down').length)
 const stableCount = computed(() => prices.value.filter(item => item.trend === 'stable').length)
 
-const loadPrices = () => {
-  prices.value = [...mockPrices]
+const loadPrices = async () => {
+  try {
+    const page = await request.get<{ list: Array<{
+      id: string
+      cropName: string
+      price: number
+      unit?: string
+      marketName?: string
+      recordedAt: string
+    }>; total: number }>('/market?size=100')
+    const previousByCrop = new Map<string, number>()
+    prices.value = [...page.list]
+      .sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
+      .map(item => {
+        const currentPrice = Number(item.price) || 0
+        const previous = previousByCrop.get(item.cropName) ?? currentPrice
+        const change = Number((currentPrice - previous).toFixed(2))
+        previousByCrop.set(item.cropName, currentPrice)
+        return {
+          id: item.id,
+          cropName: item.cropName || '',
+          unit: item.unit || '?/??',
+          currentPrice,
+          prevPrice: previous,
+          change,
+        market: item.marketName || '未知市场',
+          date: item.recordedAt || '',
+          trend: change > 0 ? 'up' : change < 0 ? 'down' : 'stable'
+        } as PriceItem
+      })
+      .reverse()
+  } catch {
+    ElMessage.error('获取市场价格失败')
+  }
 }
 
 const initCharts = () => {

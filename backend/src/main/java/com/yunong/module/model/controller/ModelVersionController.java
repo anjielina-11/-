@@ -45,6 +45,14 @@ public class ModelVersionController {
         return R.ok(service.getById(id));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('TECHNICIAN', 'ADMIN')")
+    @AuditLog(action = "更新模型版本")
+    @Operation(summary = "更新模型版本")
+    public R<ModelVersion> update(@PathVariable String id, @RequestBody ModelVersion mv) {
+        return R.ok(service.update(id, mv));
+    }
+
     @PostMapping("/{id}/deploy")
     @PreAuthorize("hasRole('ADMIN')")
     @AuditLog(action = "部署模型版本")

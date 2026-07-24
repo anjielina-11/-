@@ -38,8 +38,9 @@ public class DiagnosisController {
 
     @GetMapping("/{id}")
     @Operation(summary = "获取诊断详情")
-    public R<DiagnosisRecord> getById(@PathVariable String id) {
-        return R.ok(service.getById(id));
+    public R<DiagnosisRecord> getById(@PathVariable String id,
+                                      @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.getById(id, principal.getUserId(), isPrivileged(principal)));
     }
 
     @GetMapping
@@ -48,14 +49,17 @@ public class DiagnosisController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String reviewStatus,
-            @RequestParam(required = false) String diseaseName) {
-        return R.ok(service.list(page, size, reviewStatus, diseaseName));
+            @RequestParam(required = false) String diseaseName,
+            @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.list(page, size, reviewStatus, diseaseName,
+                principal.getUserId(), isPrivileged(principal)));
     }
 
     @GetMapping("/result/{taskId}")
     @Operation(summary = "查询AI识别结果")
-    public R<DiagnosisResultResponse> getResult(@PathVariable String taskId) {
-        return R.ok(service.getResult(taskId));
+    public R<DiagnosisResultResponse> getResult(@PathVariable String taskId,
+                                                @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.getResult(taskId, principal.getUserId(), isPrivileged(principal)));
     }
 
     @PostMapping("/{id}/review")
@@ -75,13 +79,18 @@ public class DiagnosisController {
     @Operation(summary = "防治效果反馈(农户)")
     public R<DiagnosisRecord> feedback(
             @PathVariable String id,
-            @RequestParam String feedback) {
-        return R.ok(service.feedback(id, feedback));
+            @RequestParam String feedback,
+            @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.feedback(id, feedback, principal.getUserId()));
     }
 
     @GetMapping("/stats")
     @Operation(summary = "诊断统计")
     public R<Map<String, Object>> stats() {
         return R.ok(service.stats());
+    }
+
+    private boolean isPrivileged(UserDetailsImpl principal) {
+        return "ROLE_ADMIN".equals(principal.getRole()) || "ROLE_TECHNICIAN".equals(principal.getRole());
     }
 }

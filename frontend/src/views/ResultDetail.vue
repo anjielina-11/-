@@ -1,13 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   ElProgress,
   ElAlert,
   ElButton,
+  ElEmpty,
   ElMessage,
+  ElTable,
+  ElTableColumn,
   ElTag
 } from 'element-plus'
-import { ArrowLeft, DocumentAdd, WarningFilled } from '@element-plus/icons-vue'
+import { ArrowLeft, WarningFilled } from '@element-plus/icons-vue'
+import request from '@/utils/request'
+import {
+  diseaseDisplayName,
+  markdownToPlainText,
+  normalizeReviewStatus,
+  ratioToPercent
+} from '@/utils/domainMappers'
 
 export interface ICitation {
   docTitle: string
@@ -19,32 +30,21 @@ export interface IResult {
   confidence: number
   treatment: string
   citations: ICitation[]
-  status: 'pending' | 'processing' | 'completed' | 'need_review'
+  status: 'pending' | 'processing' | 'completed' | 'need_review' | 'failed'
 }
 
+const route = useRoute()
+const router = useRouter()
 const result = ref<IResult | null>(null)
+const diagnosisList = ref<Array<{
+  id: string
+  diseaseName?: string
+  confidence?: number
+  reviewStatus?: string
+  createdAt?: string
+}>>([])
 const loading = ref(true)
-
-const mockResult: IResult = {
-  diseaseName: '水稻稻瘟病',
-  confidence: 0.85,
-  treatment: '1. 选用抗病品种：选择当地推广的抗病品种，如"滇杂31"、"云粳38"等。\n\n2. 种子处理：播种前用25%咪鲜胺乳油2000-3000倍液浸种24-48小时，或用10%浸种灵乳油500倍液浸种48小时。\n\n3. 加强田间管理：合理密植，避免过度氮肥，浅水勤灌，适时晒田，增强植株抗病能力。\n\n4. 药剂防治：发病初期及时喷药，可选用40%稻瘟灵乳油1000倍液、75%三环唑可湿性粉剂2000倍液、25%咪鲜胺乳油1500-2000倍液等，每隔7-10天喷一次，连续防治2-3次。',
-  citations: [
-    {
-      docTitle: '云南水稻病虫害防治技术手册（2024版）',
-      snippet: '稻瘟病是云南省水稻生产中最严重的病害之一，在高温高湿环境下极易爆发。选用抗病品种是最经济有效的防治措施，配合药剂防治可有效控制病害蔓延。'
-    },
-    {
-      docTitle: '中国农业百科全书·植物病理学卷',
-      snippet: '稻瘟病菌属半知菌亚门真菌，主要以分生孢子在病稻草和病谷上越冬。发病适宜温度为25-28℃，相对湿度90%以上。'
-    },
-    {
-      docTitle: '云南省农作物病虫害综合防治技术规范',
-      snippet: '在云南高原气候条件下，稻瘟病一般在分蘖期和抽穗期发生较重，应加强监测预警，及时采取综合防治措施。'
-    }
-  ],
-  status: 'completed'
-}
+const selectedId = computed(() => route.query.id as string | undefined)
 
 const confidencePercent = computed(() => {
   return result.value ? Math.round(result.value.confidence * 100) : 0
@@ -77,7 +77,8 @@ const statusLabel = computed(() => {
     completed: '识别完成',
     need_review: '待审核',
     processing: '处理中',
-    pending: '待处理'
+    pending: '待处理',
+    failed: '识别失败'
   }
   return map[result.value.status] || ''
 })
@@ -88,7 +89,8 @@ const statusTagType = computed(() => {
     completed: 'success',
     need_review: 'danger',
     processing: 'warning',
-    pending: 'info'
+    pending: 'info',
+    failed: 'danger'
   }
   return map[result.value.status] || 'info'
 })
@@ -97,20 +99,89 @@ const isNeedReview = computed(() => {
   return result.value?.status === 'need_review'
 })
 
-const handleBack = () => {
-  ElMessage.info('返回列表')
+const treatmentText = computed(() => markdownToPlainText(result.value?.treatment))
+
+const reviewStatusLabel = (status?: string) => {
+  const labels = {
+    pending: '待审核',
+    approved: '已通过',
+    rejected: '已驳回',
+    failed: '识别失败'
+  }
+  return labels[normalizeReviewStatus(status)]
 }
 
-const handleGenerateTask = () => {
-  if (!result.value) return
-  ElMessage.success(`已为「${result.value.diseaseName}」生成农事任务`)
+const reviewStatusType = (status?: string) => {
+  const types = {
+    pending: 'warning',
+    approved: 'success',
+    rejected: 'danger',
+    failed: 'info'
+  } as const
+  return types[normalizeReviewStatus(status)]
 }
 
-onMounted(() => {
-  setTimeout(() => {
-    result.value = mockResult
+const loadList = async () => {
+  const page = await request.get<{ list: typeof diagnosisList.value; total: number }>('/diagnosis', {
+    params: { page: 1, size: 100 }
+  })
+  diagnosisList.value = page.list
+}
+
+const loadDetail = async (diagnosisId: string) => {
+  const data = await request.get<{
+    status: IResult['status']
+    diseaseName?: string
+    confidence?: number
+    treatment?: string
+    citations?: Array<ICitation & { source?: string; content?: string }>
+  }>(`/diagnosis/result/${diagnosisId}`)
+  result.value = {
+    diseaseName: diseaseDisplayName(data.diseaseName),
+    confidence: Number(data.confidence) || 0,
+    treatment: data.treatment || '暂无防治建议',
+    citations: (data.citations || []).map(c => ({
+      docTitle: c.docTitle || c.source || '',
+      snippet: c.snippet || c.content || ''
+    })),
+    status: data.status
+  }
+}
+
+const handleOpen = async (diagnosisId: string) => {
+  loading.value = true
+  try {
+    await router.replace({ query: { id: diagnosisId } })
+    await loadDetail(diagnosisId)
+  } catch {
+    ElMessage.error('获取诊断结果失败')
+  } finally {
     loading.value = false
-  }, 500)
+  }
+}
+
+const handleBack = async () => {
+  loading.value = true
+  result.value = null
+  try {
+    await router.replace({ query: {} })
+    await loadList()
+  } catch {
+    ElMessage.error('获取诊断列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
+  try {
+    if (selectedId.value) await loadDetail(selectedId.value)
+    else await loadList()
+  } catch {
+    ElMessage.error(selectedId.value ? '获取诊断结果失败' : '获取诊断列表失败')
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 
@@ -120,6 +191,42 @@ onMounted(() => {
     <div v-if="loading" class="loading-container">
       <ElProgress type="circle" :percentage="0" />
     </div>
+
+    <template v-else-if="!selectedId">
+      <div class="page-header">
+        <div class="header-left">
+          <h1 class="page-title">识别结果查询</h1>
+          <p class="page-subtitle">查看历史识别结果、置信度及人工审核状态</p>
+        </div>
+      </div>
+
+      <div class="result-list-card">
+        <ElTable v-if="diagnosisList.length" :data="diagnosisList" stripe>
+          <ElTableColumn label="病害名称" min-width="180">
+            <template #default="{ row }">
+              <span class="disease-list-name">{{ diseaseDisplayName(row.diseaseName) }}</span>
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="置信度" width="120">
+            <template #default="{ row }">{{ ratioToPercent(row.confidence) }}%</template>
+          </ElTableColumn>
+          <ElTableColumn label="审核状态" width="120">
+            <template #default="{ row }">
+              <ElTag :type="reviewStatusType(row.reviewStatus)" effect="light">
+                {{ reviewStatusLabel(row.reviewStatus) }}
+              </ElTag>
+            </template>
+          </ElTableColumn>
+          <ElTableColumn prop="createdAt" label="提交时间" min-width="180" />
+          <ElTableColumn label="操作" width="110" fixed="right">
+            <template #default="{ row }">
+              <ElButton type="primary" link @click="handleOpen(row.id)">查看详情</ElButton>
+            </template>
+          </ElTableColumn>
+        </ElTable>
+        <ElEmpty v-else description="暂无识别记录" />
+      </div>
+    </template>
 
     <template v-else-if="result">
       <!-- 待审核提示横幅 -->
@@ -146,10 +253,6 @@ onMounted(() => {
           <ElButton @click="handleBack">
             <el-icon><ArrowLeft /></el-icon>
             返回列表
-          </ElButton>
-          <ElButton type="primary" @click="handleGenerateTask">
-            <el-icon><DocumentAdd /></el-icon>
-            生成任务
           </ElButton>
         </div>
       </div>
@@ -200,9 +303,7 @@ onMounted(() => {
             <h3 class="section-title">防治建议</h3>
           </div>
           <div class="treatment-body">
-            <div class="treatment-text" v-for="(paragraph, idx) in result.treatment.split('\n\n')" :key="idx">
-              {{ paragraph }}
-            </div>
+            <div class="treatment-text">{{ treatmentText }}</div>
           </div>
         </div>
       </div>
@@ -255,6 +356,18 @@ onMounted(() => {
 .header-actions {
   display: flex;
   gap: var(--spacing-sm);
+}
+
+.result-list-card {
+  padding: var(--spacing-lg);
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.disease-list-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
 /* 顶部信息卡片 */
@@ -417,6 +530,7 @@ onMounted(() => {
   line-height: 1.8;
   color: var(--color-text-primary);
   margin-bottom: var(--spacing-md);
+  white-space: pre-wrap;
 }
 
 .treatment-text:last-child {

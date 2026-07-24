@@ -70,7 +70,7 @@ const handleLogin = async () => {
             </div>
             <div class="feature-text">
               <h4>智能病害识别</h4>
-              <p>AI模型精准识别20+种作物病害</p>
+              <p>AI模型支持18类作物病害识别</p>
             </div>
           </div>
           <div class="feature-item">

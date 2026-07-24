@@ -5,6 +5,8 @@ import com.yunong.common.PageResult;
 import com.yunong.common.R;
 import com.yunong.module.auth.entity.User;
 import com.yunong.module.user.service.UserService;
+import com.yunong.module.user.dto.AdminUserRequest;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -52,12 +54,43 @@ public class UserController {
         return R.ok(service.getById(id));
     }
 
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    @AuditLog(action = "创建用户")
+    @Operation(summary = "创建用户(管理员)")
+    public R<User> create(@Valid @RequestBody AdminUserRequest request) {
+        return R.ok(service.create(request));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @AuditLog(action = "更新用户")
+    @Operation(summary = "更新用户(管理员)")
+    public R<User> update(@PathVariable String id, @Valid @RequestBody AdminUserRequest request,
+                          @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.update(id, request, principal.getUserId()));
+    }
+
     @PutMapping("/{id}/role")
     @PreAuthorize("hasRole('ADMIN')")
     @AuditLog(action = "修改用户角色")
     @Operation(summary = "修改用户角色(管理员)")
-    public R<Void> updateRole(@PathVariable String id, @RequestParam String role) {
-        service.updateRole(id, role);
+    public R<Void> updateRole(@PathVariable String id, @RequestBody RoleUpdateRequest request,
+                              @AuthenticationPrincipal UserDetailsImpl principal) {
+        service.updateRole(id, request.role(), principal.getUserId());
         return R.ok();
     }
+
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    @AuditLog(action = "修改用户状态")
+    @Operation(summary = "修改用户状态(管理员)")
+    public R<Void> updateStatus(@PathVariable String id, @RequestBody StatusUpdateRequest request,
+                                @AuthenticationPrincipal UserDetailsImpl principal) {
+        service.updateStatus(id, request.status(), principal.getUserId());
+        return R.ok();
+    }
+
+    public record RoleUpdateRequest(String role) {}
+    public record StatusUpdateRequest(int status) {}
 }

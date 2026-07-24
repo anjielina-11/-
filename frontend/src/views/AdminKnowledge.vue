@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   ElTable, ElTableColumn, ElButton, ElDialog, ElForm, ElFormItem,
   ElInput, ElSelect, ElOption, ElMessage, ElTag, ElIcon
 } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete, Document, Files, FolderOpened } from '@element-plus/icons-vue'
+import request from '@/utils/request'
+import { parseTags } from '@/utils/domainMappers'
 
 interface Knowledge {
   id: string
@@ -12,21 +14,12 @@ interface Knowledge {
   category: 'disease' | 'pest' | 'culture' | 'other'
   content: string
   keywords: string
-  status: 'published' | 'draft'
+  status: 'published' | 'draft' | 'archived'
   createdAt: string
   updatedAt: string
 }
 
-const mockKnowledge: Knowledge[] = [
-  { id: '1', title: '稻瘟病防治技术', category: 'disease', content: '稻瘟病是水稻重要病害之一，严重影响产量。防治方法：1.选用抗病品种；2.合理施肥；3.药剂防治可选用三环唑、稻瘟灵等。发病初期及时喷药，每隔7-10天喷一次，连续喷2-3次。', keywords: '水稻,稻瘟病,三环唑', status: 'published', createdAt: '2026-01-10', updatedAt: '2026-05-15' },
-  { id: '2', title: '玉米螟综合防治', category: 'pest', content: '玉米螟是玉米主要害虫，幼虫蛀茎为害。防治措施：1.农业防治：秋收后及时清除田间残株；2.生物防治：释放赤眼蜂；3.化学防治：在幼虫钻蛀前使用辛硫磷颗粒剂。', keywords: '玉米,玉米螟,赤眼蜂', status: 'published', createdAt: '2026-02-15', updatedAt: '2026-06-20' },
-  { id: '3', title: '番茄栽培管理要点', category: 'culture', content: '番茄栽培技术要点：1.育苗：选择适宜品种，适时播种；2.定植：合理密植，施足基肥；3.田间管理：及时整枝打杈，注意防治晚疫病和蚜虫；4.采收：适时采收，避免过熟。', keywords: '番茄,栽培,管理', status: 'published', createdAt: '2026-03-01', updatedAt: '2026-03-01' },
-  { id: '4', title: '草莓白粉病防治', category: 'disease', content: '草莓白粉病主要危害叶片和果实。防治方法：1.加强通风透光；2.及时摘除病叶；3.药剂防治可选用腈菌唑、嘧菌酯等。注意药剂交替使用，避免抗药性产生。', keywords: '草莓,白粉病,腈菌唑', status: 'draft', createdAt: '2026-06-10', updatedAt: '2026-06-10' },
-  { id: '5', title: '黄瓜霜霉病识别与防治', category: 'disease', content: '黄瓜霜霉病症状：叶片出现黄色多角形病斑，背面生霜状霉层。防治方法：1.选用抗病品种；2.控制湿度；3.药剂防治：霜霉威盐酸盐、烯酰吗啉等。', keywords: '黄瓜,霜霉病,霜霉威', status: 'published', createdAt: '2026-04-20', updatedAt: '2026-04-20' },
-  { id: '6', title: '有机蔬菜种植指南', category: 'culture', content: '有机蔬菜种植原则：1.禁止使用化学合成农药和化肥；2.采用生物防治和物理防治；3.轮作倒茬；4.使用有机肥。有机认证需符合国家相关标准。', keywords: '有机,蔬菜,种植', status: 'draft', createdAt: '2026-07-01', updatedAt: '2026-07-05' }
-]
-
-const knowledge = ref<Knowledge[]>([...mockKnowledge])
+const knowledge = ref<Knowledge[]>([])
 const dialogVisible = ref(false)
 const editMode = ref(false)
 const formData = ref<Knowledge>({
@@ -60,6 +53,15 @@ const filteredKnowledge = computed(() => {
 const publishedCount = computed(() => knowledge.value.filter(k => k.status === 'published').length)
 const draftCount = computed(() => knowledge.value.filter(k => k.status === 'draft').length)
 const totalCount = computed(() => knowledge.value.length)
+
+const loadKnowledge = async () => {
+  try {
+    const page = await request.get<{ list: Array<Omit<Knowledge, 'keywords'> & { tags?: string | string[] }>; total: number }>('/knowledge/documents?size=100')
+    knowledge.value = page.list.map(item => ({ ...item, keywords: parseTags(item.tags) }))
+  } catch {
+    ElMessage.error('获取知识库列表失败')
+  }
+}
 
 const handleSearch = () => {
   // 前端过滤由 computed 自动处理
@@ -97,29 +99,42 @@ const handleEdit = (row: Knowledge) => {
   dialogVisible.value = true
 }
 
-const handleDelete = (id: string) => {
-  knowledge.value = knowledge.value.filter(k => k.id !== id)
-  ElMessage.success('删除成功')
+const handleDelete = async (id: string) => {
+  try {
+    await request.put('/knowledge/documents/' + id, { status: 'archived' })
+    knowledge.value = knowledge.value.filter(k => k.id !== id)
+    ElMessage.success('删除成功')
+  } catch {
+    ElMessage.error('删除失败')
+  }
 }
 
-const handleSubmit = () => {
-  const now = new Date().toISOString().split('T')[0]
-  if (editMode.value) {
-    const index = knowledge.value.findIndex(k => k.id === formData.value.id)
-    if (index !== -1) {
-      formData.value.updatedAt = now
-      knowledge.value[index] = { ...formData.value }
-      ElMessage.success('修改成功')
+const handleSubmit = async () => {
+  try {
+    const payload = {
+      title: formData.value.title,
+      content: formData.value.content,
+      category: formData.value.category,
+      tags: JSON.stringify(formData.value.keywords.split(',').map((s: string) => s.trim()).filter(Boolean)),
+      status: formData.value.status
     }
-  } else {
-    formData.value.id = String(Date.now())
-    formData.value.createdAt = now
-    formData.value.updatedAt = now
-    knowledge.value.unshift({ ...formData.value })
-    ElMessage.success('添加成功')
+    if (editMode.value) {
+      await request.put('/knowledge/documents/' + formData.value.id, payload)
+      ElMessage.success('修改成功')
+    } else {
+      await request.post('/knowledge/documents', payload)
+      ElMessage.success('添加成功')
+    }
+    dialogVisible.value = false
+    loadKnowledge()
+  } catch {
+    ElMessage.error(editMode.value ? '修改失败' : '添加失败')
   }
-  dialogVisible.value = false
 }
+
+onMounted(() => {
+  loadKnowledge()
+})
 
 const getKeywordList = (keywords: string): string[] => {
   if (!keywords) return []

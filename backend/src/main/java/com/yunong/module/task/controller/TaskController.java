@@ -38,15 +38,18 @@ public class TaskController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String assigneeId,
-            @RequestParam(required = false) String taskType) {
-        return R.ok(service.list(page, size, status, assigneeId, taskType));
+            @RequestParam(required = false) String taskType,
+            @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.list(page, size, status, assigneeId, taskType,
+                principal.getUserId(), isPrivileged(principal)));
     }
 
     @PutMapping("/{id}")
     @AuditLog(action = "更新农事任务")
     @Operation(summary = "更新任务")
-    public R<FarmingTask> update(@PathVariable String id, @RequestBody FarmingTask update) {
-        return R.ok(service.update(id, update));
+    public R<FarmingTask> update(@PathVariable String id, @RequestBody FarmingTask update,
+                                 @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.update(id, update, principal.getUserId(), isPrivileged(principal)));
     }
 
     @PutMapping("/{id}/status")
@@ -54,8 +57,9 @@ public class TaskController {
     @Operation(summary = "任务状态流转")
     public R<FarmingTask> updateStatus(
             @PathVariable String id,
-            @RequestParam String status) {
-        return R.ok(service.updateStatus(id, status));
+            @RequestParam String status,
+            @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.updateStatus(id, status, principal.getUserId(), isPrivileged(principal)));
     }
 
     @GetMapping("/calendar")
@@ -65,5 +69,9 @@ public class TaskController {
             @RequestParam int month,
             @AuthenticationPrincipal UserDetailsImpl principal) {
         return R.ok(service.calendar(year, month, principal.getUserId()));
+    }
+
+    private boolean isPrivileged(UserDetailsImpl principal) {
+        return "ROLE_ADMIN".equals(principal.getRole()) || "ROLE_TECHNICIAN".equals(principal.getRole());
     }
 }

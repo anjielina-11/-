@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .api.diagnosis import router as diagnosis_router
@@ -7,6 +9,8 @@ from .core.config import settings
 from .services.inference_service import DiseaseClassifier
 from .services.rag_service import RAGService
 from .models.schemas import HealthResponse
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -60,6 +64,16 @@ app.add_middleware(
 app.include_router(diagnosis_router)
 app.include_router(weather_router)
 app.include_router(rag_router)
+
+
+@app.on_event("startup")
+async def initialize_knowledge_base():
+    try:
+        chunks_count = RAGService.ensure_initialized("knowledge_docs")
+        if chunks_count:
+            logger.info("Initialized RAG knowledge base with %s chunks", chunks_count)
+    except Exception:
+        logger.exception("Failed to initialize RAG knowledge base")
 
 
 @app.get(

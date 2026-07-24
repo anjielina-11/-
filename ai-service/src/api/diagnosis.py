@@ -2,7 +2,8 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from typing import Optional, Union
 from ..models.schemas import (
     DiseaseAdviceResponse, PendingReviewResponse, ErrorResponse,
-    DiseaseClassification, DiagnosisResult, DiseaseListResponse
+    DiseaseClassification, DiagnosisResult, DiseaseListResponse,
+    AdviceRequest, AdviceResponse
 )
 from ..services.inference_service import DiseaseClassifier, UnknownDiseaseError
 from ..services.agent_service import AgentService
@@ -11,6 +12,21 @@ from ..services.weather_service import WeatherService
 from ..core.config import settings
 
 router = APIRouter(prefix="/api/v1/diagnosis", tags=["diagnosis"])
+
+
+@router.post("/advice", response_model=AdviceResponse, summary="基于诊断结果生成防治建议")
+async def generate_advice(request: AdviceRequest):
+    result = AgentService.generate_advice(
+        disease_name=request.disease_name,
+        crop_info=request.crop_info,
+        weather_info=request.weather_info,
+        citations=request.citations,
+    )
+    return AdviceResponse(
+        advice=result["advice"],
+        references=result.get("references", request.citations),
+        weather_info=result.get("weather_info", request.weather_info),
+    )
 
 
 @router.post(

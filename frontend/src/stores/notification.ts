@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { diseaseDisplayName, normalizeReviewStatus } from '@/utils/domainMappers'
 
 export interface Notification {
   id: string
@@ -11,69 +12,58 @@ export interface Notification {
   link?: string
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    title: '病害识别结果',
-    content: '您提交的病害图片已识别完成，结果为水稻稻瘟病，置信度85%',
-    type: 'info',
-    read: false,
-    createdAt: '2026-07-23 10:30',
-    link: '/farmer/disease'
-  },
-  {
-    id: '2',
-    title: '农技建议',
-    content: '农技人员已审核您的病害上报并提供防治建议，请查看详情',
-    type: 'success',
-    read: false,
-    createdAt: '2026-07-23 09:15',
-    link: '/farmer/disease'
-  },
-  {
-    id: '3',
-    title: '农事任务提醒',
-    content: '您有3项任务即将到期，请及时处理',
-    type: 'warning',
-    read: true,
-    createdAt: '2026-07-22 16:45',
-    link: '/farmer/tasks'
-  },
-  {
-    id: '4',
-    title: '天气预警',
-    content: '未来3天将有暴雨天气，请做好农田排水准备',
-    type: 'warning',
-    read: true,
-    createdAt: '2026-07-22 08:00'
-  },
-  {
-    id: '5',
-    title: '系统更新',
-    content: '平台已更新至v1.2版本，新增市场价格监控功能',
-    type: 'info',
-    read: true,
-    createdAt: '2026-07-21 12:00'
-  }
-]
-
 export const useNotificationStore = defineStore('notification', () => {
   const notifications = ref<Notification[]>([])
 
   const unreadCount = ref(0)
 
-  const loadNotifications = () => {
-    const saved = localStorage.getItem('notifications')
-    if (saved) {
-      try {
-        notifications.value = JSON.parse(saved)
-      } catch {
-        notifications.value = mockNotifications
+  const loadNotifications = async () => {
+    try {
+      const { default: request } = await import('@/utils/request')
+      const { useUserStore } = await import('@/stores/user')
+      const role = useUserStore().user?.role
+      const page = await request.get<{ list: any[]; total: number }>('/diagnosis?size=20')
+      notifications.value = page.list.map((item: any) => ({
+          id: item.id,
+          title: item.diseaseName ? `诊断结果: ${diseaseDisplayName(item.diseaseName)}` : '新诊断记录',
+          content: reviewStatusText(item.reviewStatus),
+          type: notificationType(item.reviewStatus),
+          read: false,
+          createdAt: item.createdAt || new Date().toISOString(),
+          link: role === 'tech' ? `/tech/results?id=${item.id}` : undefined
+        }))
+    } catch {
+      // 离线时从 localStorage 恢复
+      const saved = localStorage.getItem('notifications')
+      if (saved) {
+        try {
+          notifications.value = JSON.parse(saved)
+        } catch {
+          notifications.value = []
+        }
       }
-    } else {
-      notifications.value = mockNotifications
     }
     updateUnreadCount()
+  }
+
+  const reviewStatusText = (status?: string): string => {
+    const labels = {
+      pending: '识别结果待人工审核',
+      approved: '识别结果已审核通过',
+      rejected: '识别结果已驳回',
+      failed: '图片识别失败，请检查后重试'
+    }
+    return labels[normalizeReviewStatus(status)]
+  }
+
+  const notificationType = (status?: string): Notification['type'] => {
+    const types = {
+      pending: 'warning',
+      approved: 'success',
+      rejected: 'error',
+      failed: 'error'
+    } as const
+    return types[normalizeReviewStatus(status)]
   }
 
   const updateUnreadCount = () => {

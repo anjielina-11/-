@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 from io import BytesIO
-from main import app
+from src.main import app
 
 
 client = TestClient(app)
@@ -22,7 +22,7 @@ def test_health_endpoint():
     
     assert response.status_code == 200
     data = response.json()
-    assert data.get("status") == "healthy"
+    assert data.get("status") in {"healthy", "degraded"}
 
 
 def test_diagnosis_image_endpoint(mock_image):

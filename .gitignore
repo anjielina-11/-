@@ -27,6 +27,7 @@ Thumbs.db
 
 # Python
 __pycache__/
+.pytest_cache/
 *.pyc
 *.pyo
 .venv/
@@ -38,12 +39,25 @@ venv/
 *.pt
 *.h5
 *.onnx
+!ai-service/best_model.pth
+!ai-service/class_to_idx.pth
 
 # 向量数据库 (本地数据)
 chroma_db/
 
 # Docker
 deploy/data/
+
+# 本地审计与自动化产物
+.audit/
+.playwright-mcp/
+frontend/test-results/
+playwright-report/
+coverage/
+result-detail-valid.png
+result-detail-valid.yml
+.claudeignore
+docs/superpowers/
 
 # 临时文件
 *.tmp

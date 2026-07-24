@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -32,6 +33,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public R<Void> handleAccessDenied(AccessDeniedException e) {
         return R.fail(ErrorCode.FORBIDDEN.getCode(), "无权限访问");
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public R<Void> handleAuthentication(AuthenticationException e) {
+        log.warn("认证失败: {}", e.getMessage());
+        return R.fail(ErrorCode.USERNAME_OR_PASSWORD_ERROR.getCode(),
+                ErrorCode.USERNAME_OR_PASSWORD_ERROR.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

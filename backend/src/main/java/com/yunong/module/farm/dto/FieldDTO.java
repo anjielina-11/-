@@ -13,6 +13,8 @@ public class FieldDTO {
     private String id;
     private String name;
     private BigDecimal area;
+    private String soilType;
+    private String remark;
     private String cropType;
 
     public static FieldDTO from(Field field, String cropType) {
@@ -20,6 +22,8 @@ public class FieldDTO {
                 field.getId(),
                 field.getName(),
                 field.getAreaMu(),
+                field.getSoilType(),
+                field.getRemark(),
                 cropType
         );
     }

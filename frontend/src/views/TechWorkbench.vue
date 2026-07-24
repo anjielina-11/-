@@ -17,8 +17,9 @@ import {
 } from 'element-plus'
 import { Clock, CircleCheck, CircleClose, RefreshRight } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+import { diseaseDisplayName, normalizeReviewStatus } from '@/utils/domainMappers'
 
-export type ReviewStatus = 'pending' | 'approved' | 'rejected'
+export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'failed'
 
 export interface ReviewItem {
   taskId: string
@@ -34,25 +35,21 @@ export interface ReviewItem {
 
 interface DiagnosisRecord {
   id: string
-  taskId: string
-  farmerName: string
-  fieldName: string
-  diseaseName: string
-  confidence: number
-  reviewStatus: string
-  submitTime: string
-  treatment: string
-  citations: { docTitle: string; snippet: string }[]
+  createdAt?: string
+  aiResult?: string
+  farmerName?: string
+  fieldName?: string
+  diseaseName?: string
+  confidence?: number
+  reviewStatus?: string
+  submitTime?: string
+  treatment?: string
+  citations?: { docTitle: string; snippet: string }[]
 }
 
 interface PageResult<T> {
   list: T[]
   total: number
-}
-
-interface Response<T> {
-  code: number
-  data: T
 }
 
 const tableData = ref<ReviewItem[]>([])
@@ -75,14 +72,16 @@ const statusOptions = [
   { value: '', label: '全部' },
   { value: 'pending', label: '待审核' },
   { value: 'approved', label: '已通过' },
-  { value: 'rejected', label: '已驳回' }
+  { value: 'rejected', label: '已驳回' },
+  { value: 'failed', label: '识别失败' }
 ]
 
 const getStatusTag = (status: ReviewStatus) => {
   const configs = {
     pending: { type: 'warning' as const, label: '待审核' },
     approved: { type: 'success' as const, label: '已通过' },
-    rejected: { type: 'danger' as const, label: '已驳回' }
+    rejected: { type: 'danger' as const, label: '已驳回' },
+    failed: { type: 'info' as const, label: '识别失败' }
   }
   return configs[status]
 }
@@ -121,22 +120,26 @@ const fetchData = async () => {
   try {
     const params: Record<string, unknown> = {}
     if (statusFilter.value) {
-      params.reviewStatus = statusFilter.value.toUpperCase()
+      params.reviewStatus = statusFilter.value === 'pending' ? 'pending_review' : statusFilter.value
     }
-    const response = await request.get<Response<PageResult<DiagnosisRecord>>>('/diagnosis', { params, headers: {} })
-    if (response.code === 200) {
-      tableData.value = response.data.list.map(record => ({
-        taskId: record.taskId || record.id,
+    const page = await request.get<PageResult<DiagnosisRecord>>('/diagnosis', { params })
+    tableData.value = page.list.map(record => {
+      let aiResult: { treatment?: string; citations?: { docTitle: string; snippet: string }[] } = {}
+      if (record.aiResult) {
+        try { aiResult = JSON.parse(record.aiResult) } catch { aiResult = {} }
+      }
+      return {
+        taskId: record.id,
         farmerName: record.farmerName || '未知农户',
         fieldName: record.fieldName || '',
-        diseaseName: record.diseaseName || '',
-        confidence: record.confidence || 0,
-        status: record.reviewStatus === 'PENDING' ? 'pending' : record.reviewStatus === 'APPROVED' ? 'approved' : 'rejected',
-        submitTime: record.submitTime || '',
-        treatment: record.treatment || '',
-        citations: record.citations || []
-      }))
-    }
+        diseaseName: diseaseDisplayName(record.diseaseName),
+        confidence: Number(record.confidence) || 0,
+        status: normalizeReviewStatus(record.reviewStatus),
+        submitTime: record.submitTime || record.createdAt || '',
+        treatment: record.treatment || aiResult.treatment || '',
+        citations: record.citations || aiResult.citations || []
+      }
+    })
   } catch (error) {
     ElMessage.error('获取审核列表失败')
   } finally {
@@ -171,8 +174,8 @@ const handleApprove = async () => {
   dialogLoading.value = true
   
   try {
-    await request.post(`/diagnosis/${currentItem.value.taskId}/review`, {
-      params: { status: 'APPROVED' }
+    await request.post(`/diagnosis/${currentItem.value.taskId}/review`, undefined, {
+      params: { status: 'approved' }
     })
     
     const index = tableData.value.findIndex(item => item.taskId === currentItem.value?.taskId)
@@ -192,15 +195,17 @@ const handleApprove = async () => {
 const handleReject = async () => {
   if (!currentItem.value) return
   
-  await formRef.value?.validate((valid) => {
-    if (!valid) return
-  })
-  
+  try {
+    await formRef.value?.validate()
+  } catch {
+    return
+  }
+
   dialogLoading.value = true
   
   try {
-    await request.post(`/diagnosis/${currentItem.value.taskId}/review`, {
-      params: { status: 'REJECTED', comment: form.rejectReason }
+    await request.post(`/diagnosis/${currentItem.value.taskId}/review`, undefined, {
+      params: { status: 'rejected', comment: form.rejectReason }
     })
     
     const index = tableData.value.findIndex(item => item.taskId === currentItem.value?.taskId)

@@ -16,8 +16,8 @@ interface Task {
 interface FarmingTask {
   id: string
   title: string
-  fieldName: string
-  dueDate: string
+  cycleId?: string
+  scheduledDate?: string
   status: string
   description?: string
 }
@@ -25,11 +25,6 @@ interface FarmingTask {
 interface PageResult<T> {
   list: T[]
   total: number
-}
-
-interface Response<T> {
-  code: number
-  data: T
 }
 
 const tasks = ref<Task[]>([])
@@ -58,18 +53,16 @@ const isToday = (dateStr: string) => {
 
 const loadTasks = async () => {
   try {
-    const response = await request.get<Response<PageResult<FarmingTask>>>('/tasks')
-    if (response.code === 200) {
-      tasks.value = response.data.list.map(task => ({
-        id: task.id,
-        title: task.title,
-        fieldName: task.fieldName,
-        dueDate: task.dueDate,
-        status: task.status === 'PENDING' ? '待执行' : task.status === 'IN_PROGRESS' ? '执行中' : '已完成',
-        description: task.description
-      }))
-      updateChart()
-    }
+    const response = await request.get<PageResult<FarmingTask>>('/tasks', { params: { size: 100 } })
+    tasks.value = response.list.map(task => ({
+      id: task.id,
+      title: task.title,
+      fieldName: task.cycleId ? `周期 ${task.cycleId.slice(0, 8)}` : '未关联种植周期',
+      dueDate: task.scheduledDate ?? '-',
+      status: task.status === 'pending' ? '待执行' : task.status === 'in_progress' ? '执行中' : '已完成',
+      description: task.description
+    }))
+    updateChart()
   } catch (error) {
     ElMessage.error('获取任务列表失败')
   }
@@ -183,8 +176,8 @@ const handleRowClick = (row: Task) => {
 const markAsCompleted = async () => {
   if (!selectedTask.value) return
   try {
-    await request.put(`/tasks/${selectedTask.value.id}/status`, {
-      params: { status: 'COMPLETED' }
+    await request.put(`/tasks/${selectedTask.value.id}/status`, undefined, {
+      params: { status: 'completed' }
     })
     const index = tasks.value.findIndex(t => t.id === selectedTask.value!.id)
     if (index !== -1) {

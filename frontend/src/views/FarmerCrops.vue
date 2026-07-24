@@ -4,9 +4,12 @@ import { ElCard, ElTable, ElTableColumn, ElButton, ElDialog, ElForm, ElFormItem,
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import request from '@/utils/request'
+import { cycleStatusLabel } from '@/utils/domainMappers'
 
 interface Crop {
   id: string
+  cropId: string
+  fieldId: string
   name: string
   fieldName: string
   plantedDate: string
@@ -19,14 +22,13 @@ interface Crop {
 
 interface PlantingCycle {
   id: string
-  cropName: string
-  fieldName: string
-  plantedDate: string
-  expectedHarvestDate: string
+  cropId: string
+  fieldId: string
+  plantingDate?: string
+  expectedHarvestDate?: string
   status: string
-  area: number
-  variety: string
-  notes?: string
+  areaMu?: number
+  remark?: string
 }
 
 interface PageResult<T> {
@@ -34,16 +36,32 @@ interface PageResult<T> {
   total: number
 }
 
-interface Response<T> {
-  code: number
-  data: T
+interface CropOption {
+  id: string
+  name: string
+  variety?: string
+}
+
+interface FarmOption {
+  id: string
+  name: string
+}
+
+interface FieldOption {
+  id: string
+  name: string
+  farmName: string
 }
 
 const crops = ref<Crop[]>([])
+const cropOptions = ref<CropOption[]>([])
+const fieldOptions = ref<FieldOption[]>([])
 const dialogVisible = ref(false)
 const editMode = ref(false)
 const formData = ref<Crop>({
   id: '',
+  cropId: '',
+  fieldId: '',
   name: '',
   fieldName: '',
   plantedDate: '',
@@ -69,21 +87,41 @@ const totalArea = computed(() => crops.value.reduce((sum, c) => sum + c.area, 0)
 
 const loadCrops = async () => {
   try {
-    const response = await request.get<Response<PageResult<PlantingCycle>>>('/planting-cycles')
-    if (response.code === 200) {
-      crops.value = response.data.list.map(cycle => ({
+    const [cycles, availableCrops, farmPage] = await Promise.all([
+      request.get<PageResult<PlantingCycle>>('/planting-cycles?size=100'),
+      request.get<PageResult<CropOption>>('/crops?size=100'),
+      request.get<PageResult<FarmOption>>('/farms?size=100')
+    ])
+    cropOptions.value = availableCrops.list
+    const fieldPages = await Promise.all(farmPage.list.map(async farm => ({
+      farm,
+      page: await request.get<PageResult<{ id: string; name: string }>>(`/farms/${farm.id}/fields`)
+    })))
+    fieldOptions.value = fieldPages.flatMap(({ farm, page }) => page.list.map(field => ({
+      id: field.id,
+      name: field.name,
+      farmName: farm.name
+    })))
+    const cropMap = new Map(cropOptions.value.map(crop => [crop.id, crop]))
+    const fieldMap = new Map(fieldOptions.value.map(field => [field.id, field]))
+    crops.value = cycles.list.map(cycle => {
+      const crop = cropMap.get(cycle.cropId)
+      const field = fieldMap.get(cycle.fieldId)
+      return {
         id: cycle.id,
-        name: cycle.cropName,
-        fieldName: cycle.fieldName,
-        plantedDate: cycle.plantedDate,
-        expectedHarvestDate: cycle.expectedHarvestDate,
-        status: cycle.status === 'ACTIVE' ? '生长中' : cycle.status === 'PENDING_HARVEST' ? '待收获' : '已收获',
-        area: cycle.area || 0,
-        variety: cycle.variety,
-        notes: cycle.notes
-      }))
-      updateChart()
-    }
+        cropId: cycle.cropId,
+        fieldId: cycle.fieldId,
+        name: crop?.name || '未知作物',
+        fieldName: field ? `${field.farmName} / ${field.name}` : '未知地块',
+        plantedDate: cycle.plantingDate || '-',
+        expectedHarvestDate: cycle.expectedHarvestDate || '-',
+        status: cycleStatusLabel(cycle.status),
+        area: Number(cycle.areaMu) || 0,
+        variety: crop?.variety || '-',
+        notes: cycle.remark
+      }
+    })
+    updateChart()
   } catch (error) {
     ElMessage.error('获取种植档案失败')
   }
@@ -177,6 +215,8 @@ const handleAdd = () => {
   editMode.value = false
   formData.value = {
     id: '',
+    cropId: cropOptions.value[0]?.id || '',
+    fieldId: fieldOptions.value[0]?.id || '',
     name: '',
     fieldName: '',
     plantedDate: '',
@@ -209,26 +249,22 @@ const handleSubmit = async () => {
   try {
     if (editMode.value) {
       await request.put(`/planting-cycles/${formData.value.id}`, {
-        cropName: formData.value.name,
-        fieldName: formData.value.fieldName,
-        plantedDate: formData.value.plantedDate,
+        cropId: formData.value.cropId,
+        plantingDate: formData.value.plantedDate,
         expectedHarvestDate: formData.value.expectedHarvestDate,
-        status: formData.value.status === '生长中' ? 'ACTIVE' : formData.value.status === '待收获' ? 'PENDING_HARVEST' : 'HARVESTED',
-        area: formData.value.area,
-        variety: formData.value.variety,
-        notes: formData.value.notes
+        status: formData.value.status === '生长中' ? 'active' : formData.value.status === '待收获' ? 'pending_harvest' : 'completed',
+        areaMu: formData.value.area,
+        remark: formData.value.notes
       })
       ElMessage.success('修改成功')
     } else {
       await request.post('/planting-cycles', {
-        cropName: formData.value.name,
-        fieldName: formData.value.fieldName,
-        plantedDate: formData.value.plantedDate,
+        cropId: formData.value.cropId,
+        fieldId: formData.value.fieldId,
+        plantingDate: formData.value.plantedDate,
         expectedHarvestDate: formData.value.expectedHarvestDate,
-        status: 'ACTIVE',
-        area: formData.value.area,
-        variety: formData.value.variety,
-        notes: formData.value.notes
+        areaMu: formData.value.area,
+        remark: formData.value.notes
       })
       ElMessage.success('添加成功')
     }
@@ -378,18 +414,14 @@ onUnmounted(() => {
     >
       <ElForm :model="formData" label-width="110px" label-position="left" class="custom-form">
         <ElFormItem label="作物名称" required>
-          <ElInput v-model="formData.name" placeholder="请输入作物名称" />
-        </ElFormItem>
-        <ElFormItem label="所属地块" required>
-          <ElSelect v-model="formData.fieldName" placeholder="请选择地块" style="width: 100%">
-            <ElOption label="水稻田A" value="水稻田A" />
-            <ElOption label="玉米地B" value="玉米地B" />
-            <ElOption label="蔬菜基地C" value="蔬菜基地C" />
-            <ElOption label="水果园D" value="水果园D" />
+          <ElSelect v-model="formData.cropId" placeholder="请选择作物" style="width: 100%">
+            <ElOption v-for="crop in cropOptions" :key="crop.id" :label="crop.variety ? `${crop.name} / ${crop.variety}` : crop.name" :value="crop.id" />
           </ElSelect>
         </ElFormItem>
-        <ElFormItem label="品种" required>
-          <ElInput v-model="formData.variety" placeholder="请输入品种" />
+        <ElFormItem label="所属地块" required>
+          <ElSelect v-model="formData.fieldId" placeholder="请选择地块" style="width: 100%" :disabled="editMode">
+            <ElOption v-for="field in fieldOptions" :key="field.id" :label="`${field.farmName} / ${field.name}`" :value="field.id" />
+          </ElSelect>
         </ElFormItem>
         <ElFormItem label="种植日期" required>
           <ElDatePicker v-model="formData.plantedDate" type="date" placeholder="选择种植日期" style="width: 100%" />

@@ -72,6 +72,10 @@ minio:
   bucket: ${MINIO_BUCKET:yunnong-images}
   region: ${MINIO_REGION:us-east-1}
 
+ai:
+  service:
+    url: ${AI_SERVICE_URL:http://localhost:8000}
+
 # Swagger
 springdoc:
   api-docs:

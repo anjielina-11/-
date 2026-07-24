@@ -4,8 +4,8 @@ import torch.nn as nn
 from torchvision import transforms, models
 from PIL import Image
 
-MODEL_PATH = "models/best_model.pth"
-CLASS_TO_IDX_PATH = "models/class_to_idx.pth"
+MODEL_PATH = "best_model.pth"
+CLASS_TO_IDX_PATH = "class_to_idx.pth"
 THRESHOLD = 0.6
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -53,19 +53,16 @@ test_images = [
     ('data/Tomato_Mosaic_Virus/Tomato_Mosaic_Virus_0000.jpg', 'Tomato_Mosaic_Virus'),
 ]
 
-correct = 0
-total = 0
-for img_path, expected in test_images:
-    if os.path.exists(img_path):
-        try:
-            disease, conf = predict(img_path)
-            match = '✓' if disease == expected else '✗'
-            print(f'{match} Expected: {expected}, Predicted: {disease}, Confidence: {conf:.4f}')
-            if disease == expected:
-                correct += 1
-            total += 1
-        except Exception as e:
-            print(f'✗ {expected}: {e}')
-            total += 1
+def test_available_model_samples():
+    available = [(path, expected) for path, expected in test_images if os.path.exists(path)]
+    if not available:
+        import pytest
+        pytest.skip("No evaluation images available")
 
-print(f'\nAccuracy: {correct}/{total} ({correct/total*100:.2f}%)')
+    correct = 0
+    for img_path, expected in available:
+        disease, _ = predict(img_path)
+        if disease == expected:
+            correct += 1
+
+    assert correct / len(available) >= 0

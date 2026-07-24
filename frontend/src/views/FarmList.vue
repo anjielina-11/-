@@ -20,6 +20,7 @@ import request from '@/utils/request'
 
 export interface IFarm {
   id: string
+  farmId: string
   name: string
   farmName: string
   area: number
@@ -33,12 +34,23 @@ interface PageResult<T> {
   total: number
 }
 
-interface FarmResponse {
-  code: number
-  data: PageResult<IFarm>
+interface Farm {
+  id: string
+  name: string
+}
+
+interface FieldResponse {
+  id: string
+  name: string
+  area?: number
+  soilType?: string
+  cropType?: string
+  createdAt?: string
 }
 
 const tableData = ref<IFarm[]>([])
+const allFields = ref<IFarm[]>([])
+const farms = ref<Farm[]>([])
 const loading = ref(false)
 const searchKeyword = ref('')
 
@@ -48,9 +60,8 @@ const editId = ref<string | null>(null)
 
 const form = reactive({
   name: '',
-  farmName: '',
+  farmId: '',
   area: '',
-  cropType: '',
   soilType: ''
 })
 
@@ -60,15 +71,12 @@ const rules = {
   name: [
     { required: true, message: '请输入地块名称', trigger: 'blur' }
   ],
-  farmName: [
-    { required: true, message: '请输入所属农场', trigger: 'blur' }
+  farmId: [
+    { required: true, message: '请选择所属农场', trigger: 'change' }
   ],
   area: [
     { required: true, message: '请输入面积', trigger: 'blur' },
     { type: 'number' as const, min: 0, message: '面积必须大于0', trigger: 'blur' }
-  ],
-  cropType: [
-    { required: true, message: '请选择作物类型', trigger: 'change' }
   ],
   soilType: [
     { required: true, message: '请选择土壤类型', trigger: 'change' }
@@ -79,31 +87,28 @@ const total = ref(0)
 const pageSize = ref(10)
 const currentPage = ref(1)
 
-const cropTypes = ['水稻', '玉米', '小麦', '蔬菜', '水果', '花卉', '茶叶', '中药材']
 const soilTypes = ['红壤', '黄壤', '黑土', '褐土', '潮土', '水稻土', '紫色土', '沙土']
 
 const fetchData = async () => {
   loading.value = true
   try {
-    const response = await request.get<FarmResponse>('/farms', {
-      params: {
-        page: currentPage.value,
-        size: pageSize.value
-      },
-      headers: {}
-    })
-    if (response.code === 200) {
-      tableData.value = response.data.list.map(farm => ({
-        id: farm.id,
-        name: farm.name,
-        farmName: farm.farmName || farm.name,
-        area: farm.area || 0,
-        cropType: farm.cropType || '',
-        soilType: farm.soilType || '',
-        createdAt: farm.createdAt || ''
-      }))
-      total.value = response.data.total
-    }
+    const farmPage = await request.get<PageResult<Farm>>('/farms', { params: { size: 100 } })
+    farms.value = farmPage.list
+    const pages = await Promise.all(farms.value.map(async farm => ({
+      farm,
+      fields: await request.get<PageResult<FieldResponse>>(`/farms/${farm.id}/fields`)
+    })))
+    allFields.value = pages.flatMap(({ farm, fields }) => fields.list.map(field => ({
+      id: field.id,
+      farmId: farm.id,
+      name: field.name,
+      farmName: farm.name,
+      area: Number(field.area) || 0,
+      cropType: field.cropType || '未登记',
+      soilType: field.soilType || '未填写',
+      createdAt: field.createdAt || ''
+    })))
+    applyFilter()
   } catch (error) {
     ElMessage.error('获取地块列表失败')
   } finally {
@@ -113,22 +118,31 @@ const fetchData = async () => {
 
 const handleSearch = () => {
   currentPage.value = 1
-  fetchData()
+  applyFilter()
 }
 
 const handleReset = () => {
   searchKeyword.value = ''
   currentPage.value = 1
-  fetchData()
+  applyFilter()
+}
+
+const applyFilter = () => {
+  const keyword = searchKeyword.value.trim().toLowerCase()
+  const filtered = keyword
+    ? allFields.value.filter(field => `${field.name} ${field.farmName}`.toLowerCase().includes(keyword))
+    : allFields.value
+  total.value = filtered.length
+  const start = (currentPage.value - 1) * pageSize.value
+  tableData.value = filtered.slice(start, start + pageSize.value)
 }
 
 const handleAdd = () => {
   dialogTitle.value = '新增地块'
   editId.value = null
   form.name = ''
-  form.farmName = ''
+  form.farmId = farms.value[0]?.id || ''
   form.area = ''
-  form.cropType = ''
   form.soilType = ''
   dialogVisible.value = true
 }
@@ -137,28 +151,25 @@ const handleEdit = (row: IFarm) => {
   dialogTitle.value = '编辑地块'
   editId.value = row.id
   form.name = row.name
-  form.farmName = row.farmName
+  form.farmId = row.farmId
   form.area = String(row.area)
-  form.cropType = row.cropType
   form.soilType = row.soilType
   dialogVisible.value = true
 }
 
-const handleDelete = (row: IFarm) => {
-  ElMessageBox.confirm(
-    `确定要删除地块「${row.name}」吗？`,
-    '确认删除',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
+const handleDelete = async (row: IFarm) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除地块「${row.name}」吗？`,
+      '确认删除',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+    await request.delete(`/farms/${row.farmId}/fields/${row.id}`)
     ElMessage.success('删除成功')
-    fetchData()
-  }).catch(() => {
-    ElMessage.info('已取消删除')
-  })
+    await fetchData()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error('删除失败')
+  }
 }
 
 const handleSubmit = async () => {
@@ -167,20 +178,16 @@ const handleSubmit = async () => {
 
     try {
       if (editId.value) {
-        await request.put(`/farms/${editId.value}`, {
+        await request.put(`/farms/${form.farmId}/fields/${editId.value}`, {
           name: form.name,
-          farmName: form.farmName,
-          area: parseFloat(form.area),
-          cropType: form.cropType,
+          areaMu: parseFloat(form.area),
           soilType: form.soilType
         })
         ElMessage.success('修改成功')
       } else {
-        await request.post('/farms', {
+        await request.post(`/farms/${form.farmId}/fields`, {
           name: form.name,
-          farmName: form.farmName,
-          area: parseFloat(form.area),
-          cropType: form.cropType,
+          areaMu: parseFloat(form.area),
           soilType: form.soilType
         })
         ElMessage.success('新增成功')
@@ -201,12 +208,12 @@ const handleClose = () => {
 const handleSizeChange = (size: number) => {
   pageSize.value = size
   currentPage.value = 1
-  fetchData()
+  applyFilter()
 }
 
 const handleCurrentChange = (page: number) => {
   currentPage.value = page
-  fetchData()
+  applyFilter()
 }
 
 onMounted(() => {
@@ -304,16 +311,13 @@ onMounted(() => {
         <ElFormItem label="地块名称" prop="name">
           <ElInput v-model="form.name" placeholder="请输入地块名称" />
         </ElFormItem>
-        <ElFormItem label="所属农场" prop="farmName">
-          <ElInput v-model="form.farmName" placeholder="请输入所属农场" />
+        <ElFormItem label="所属农场" prop="farmId">
+          <ElSelect v-model="form.farmId" placeholder="请选择所属农场" style="width: 100%" :disabled="!!editId">
+            <ElOption v-for="farm in farms" :key="farm.id" :label="farm.name" :value="farm.id" />
+          </ElSelect>
         </ElFormItem>
         <ElFormItem label="面积（亩）" prop="area">
           <ElInput v-model="form.area" type="number" placeholder="请输入面积" />
-        </ElFormItem>
-        <ElFormItem label="作物类型" prop="cropType">
-          <ElSelect v-model="form.cropType" placeholder="请选择作物类型" style="width: 100%">
-            <ElOption v-for="type in cropTypes" :key="type" :label="type" :value="type" />
-          </ElSelect>
         </ElFormItem>
         <ElFormItem label="土壤类型" prop="soilType">
           <ElSelect v-model="form.soilType" placeholder="请选择土壤类型" style="width: 100%">

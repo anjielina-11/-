@@ -39,6 +39,22 @@ public class ModelVersionService {
         return mv;
     }
 
+    public ModelVersion update(String id, ModelVersion update) {
+        var mv = getById(id);
+        if (update.getModelName() != null) mv.setModelName(update.getModelName());
+        if (update.getModelType() != null) mv.setModelType(update.getModelType());
+        if (update.getVersion() != null) mv.setVersion(update.getVersion());
+        if (update.getAccuracy() != null) mv.setAccuracy(update.getAccuracy());
+        if (update.getPrecisionVal() != null) mv.setPrecisionVal(update.getPrecisionVal());
+        if (update.getRecallVal() != null) mv.setRecallVal(update.getRecallVal());
+        if (update.getF1Score() != null) mv.setF1Score(update.getF1Score());
+        if (update.getModelPath() != null) mv.setModelPath(update.getModelPath());
+        if (update.getConfigJson() != null) mv.setConfigJson(update.getConfigJson());
+        if (update.getDescription() != null) mv.setDescription(update.getDescription());
+        mapper.updateById(mv);
+        return mv;
+    }
+
     public ModelVersion deploy(String id) {
         var mv = getById(id);
         mv.setStatus("active");

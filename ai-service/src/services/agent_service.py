@@ -13,9 +13,10 @@ class AgentService:
         disease_name: str,
         crop_info: str = "未知作物",
         weather_info: str = "未知天气",
-        weather_data: Optional[Dict] = None
+        weather_data: Optional[Dict] = None,
+        citations: Optional[List[Dict]] = None,
     ) -> Dict:
-        reference_docs = cls._retrieve_reference(disease_name)
+        reference_docs = citations if citations is not None else cls._retrieve_reference(disease_name)
 
         if weather_data:
             weather_info = cls._format_weather_info(weather_data)
@@ -27,7 +28,7 @@ class AgentService:
             reference_docs=reference_docs
         )
 
-        llm_response = cls._call_llm(prompt)
+        llm_response = cls._call_llm(prompt, reference_docs)
 
         return {
             "advice": llm_response,
@@ -142,13 +143,13 @@ class AgentService:
         return prompt
 
     @classmethod
-    def _call_llm(cls, prompt: str) -> str:
+    def _call_llm(cls, prompt: str, reference_docs: Optional[List[Dict]] = None) -> str:
         api_key = settings.LLM_API_KEY
         api_base = settings.LLM_API_BASE
         model_name = settings.LLM_MODEL_NAME
 
         if not api_key or not api_base:
-            return cls._generate_fallback_response(prompt)
+            return cls._generate_fallback_response(reference_docs)
 
         headers = {
             "Content-Type": "application/json",
@@ -178,11 +179,19 @@ class AgentService:
             result = response.json()
             return result["choices"][0]["message"]["content"].strip()
         except Exception as e:
-            return cls._generate_fallback_response(prompt)
+            return cls._generate_fallback_response(reference_docs)
 
     @classmethod
-    def _generate_fallback_response(cls, prompt: str) -> str:
-        return """## 1. 病害分析
+    def _generate_fallback_response(cls, reference_docs: Optional[List[Dict]] = None) -> str:
+        references = reference_docs or []
+        reference_section = "暂无可用知识库引用，请由农技人员复核。"
+        if references:
+            reference_section = "\n\n".join(
+                f"- 来源：{doc.get('source', f'文档{i + 1}')}\n  {doc.get('content', '').strip()[:500]}"
+                for i, doc in enumerate(references[:3])
+            )
+
+        return f"""## 1. 病害分析
 该病害对作物生长有一定影响，需要及时采取防治措施。
 
 ## 2. 农业防治
@@ -208,4 +217,6 @@ class AgentService:
 ---
 
 ### 参考来源
-当前环境未配置大语言模型API，以上为通用防治建议框架。如需更精准的建议，请配置 LLM_API_KEY 和 LLM_API_BASE。"""
+当前环境未配置大语言模型 API，以下内容直接引用 RAG 检索结果，供农技人员结合现场情况审核：
+
+{reference_section}"""

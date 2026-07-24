@@ -1,5 +1,9 @@
 package com.yunong.module.system.service;
 
+import com.yunong.module.crop.entity.Crop;
+import com.yunong.module.crop.mapper.CropMapper;
+import com.yunong.module.farm.entity.Farm;
+import com.yunong.module.farm.mapper.FarmMapper;
 import com.yunong.module.market.entity.MarketPrice;
 import com.yunong.module.market.mapper.MarketPriceMapper;
 import com.yunong.module.weather.entity.WeatherRecord;
@@ -12,7 +16,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * 定时数据采集服务 —— 天气 & 市场价格
@@ -25,26 +28,31 @@ public class ScheduledTaskService {
 
     private final WeatherRecordMapper weatherMapper;
     private final MarketPriceMapper marketMapper;
+    private final FarmMapper farmMapper;
+    private final CropMapper cropMapper;
 
     /** 每小时采集天气数据 */
     @Scheduled(cron = "0 0 * * * ?")
     public void fetchWeather() {
         log.info("定时任务: 采集天气数据");
         try {
-            // TODO: 对接真实天气 API
-            var wr = new WeatherRecord();
-            wr.setFarmId("mock-farm-001");
-            wr.setTemperature(new BigDecimal("25.5"));
-            wr.setHumidity(new BigDecimal("68.0"));
-            wr.setRainfall(new BigDecimal("0.0"));
-            wr.setWindSpeed(new BigDecimal("2.3"));
-            wr.setWindDir("SW");
-            wr.setPressure(new BigDecimal("1013.2"));
-            wr.setWeatherDesc("多云");
-            wr.setSource("scheduled");
-            wr.setRecordedAt(LocalDateTime.now());
-            weatherMapper.insert(wr);
-            log.debug("天气数据采集完成: temp={}C, humidity={}%", wr.getTemperature(), wr.getHumidity());
+            var farms = farmMapper.selectList(null);
+            for (var farm : farms) {
+                // TODO: 对接真实天气 API 后按农场坐标获取数据。
+                var record = new WeatherRecord();
+                record.setFarmId(farm.getId());
+                record.setTemperature(new BigDecimal("25.5"));
+                record.setHumidity(new BigDecimal("68.0"));
+                record.setRainfall(new BigDecimal("0.0"));
+                record.setWindSpeed(new BigDecimal("2.3"));
+                record.setWindDir("SW");
+                record.setPressure(new BigDecimal("1013.2"));
+                record.setWeatherDesc("多云");
+                record.setSource("scheduled");
+                record.setRecordedAt(LocalDateTime.now());
+                weatherMapper.insert(record);
+            }
+            log.debug("天气数据采集完成: {} 个农场", farms.size());
         } catch (Exception e) {
             log.error("天气数据采集失败", e);
         }
@@ -55,22 +63,21 @@ public class ScheduledTaskService {
     public void fetchMarketPrices() {
         log.info("定时任务: 采集市场价格");
         try {
-            // TODO: 对接真实市场价格 API
-            String[] cropIds = {"crop-001", "crop-002"};
-            String[] cropNames = {"水稻", "玉米"};
-            for (int i = 0; i < cropIds.length; i++) {
-                var mp = new MarketPrice();
-                mp.setCropId(cropIds[i]);
-                mp.setCropName(cropNames[i]);
-                mp.setPrice(new BigDecimal(String.valueOf(2.5 + Math.random())));
-                mp.setUnit("元/公斤");
-                mp.setMarketName("昆明市呈贡批发市场");
-                mp.setCategory("粮食");
-                mp.setSource("scheduled");
-                mp.setRecordedAt(LocalDate.now());
-                marketMapper.insert(mp);
+            var crops = cropMapper.selectList(null);
+            for (var crop : crops) {
+                // TODO: 对接真实市场价格 API 后按作物和市场获取数据。
+                var record = new MarketPrice();
+                record.setCropId(crop.getId());
+                record.setCropName(crop.getName());
+                record.setPrice(BigDecimal.valueOf(2.5 + Math.random()));
+                record.setUnit("元/公斤");
+                record.setMarketName("昆明市呈贡批发市场");
+                record.setCategory(crop.getCategory());
+                record.setSource("scheduled");
+                record.setRecordedAt(LocalDate.now());
+                marketMapper.insert(record);
             }
-            log.debug("市场价格采集完成: {} 条", cropIds.length);
+            log.debug("市场价格采集完成: {} 条", crops.size());
         } catch (Exception e) {
             log.error("市场价格采集失败", e);
         }

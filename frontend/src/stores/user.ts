@@ -25,7 +25,23 @@ export interface LoginParams {
 
 export interface LoginResponse {
   token: string
+  refreshToken?: string
   user: UserInfo
+}
+
+export const normalizeBackendRole = (role: string): Role => {
+  const normalized = role.toUpperCase().replace(/^ROLE_/, '')
+  const roleMap: Record<string, Role> = {
+    FARMER: 'farmer',
+    TECHNICIAN: 'tech',
+    TECH: 'tech',
+    COOP_MANAGER: 'coop',
+    COOP: 'coop',
+    ADMIN: 'admin'
+  }
+  const mapped = roleMap[normalized]
+  if (!mapped) throw new Error(`不支持的用户角色: ${role}`)
+  return mapped
 }
 
 const menuConfig: Record<Role, MenuItem[]> = {
@@ -139,11 +155,13 @@ export const useUserStore = defineStore('user', () => {
     try {
       const useMock = import.meta.env.VITE_MOCK_LOGIN === 'true'
       const data = useMock ? await mockLogin(params) : await request.post<LoginResponse>('/auth/login', params)
+      const normalizedUser = { ...data.user, role: normalizeBackendRole(data.user.role) }
       token.value = data.token
-      user.value = data.user
-      setMenus(data.user.role)
+      user.value = normalizedUser
+      setMenus(normalizedUser.role)
       localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      localStorage.setItem('user', JSON.stringify(normalizedUser))
+      if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken)
     } catch (error) {
       throw error
     }
@@ -156,6 +174,7 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     localStorage.removeItem('menus')
+    localStorage.removeItem('refreshToken')
   }
 
   const loadUserInfo = (): void => {
