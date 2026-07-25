@@ -15,7 +15,7 @@ COPY src src
 RUN mvn package -DskipTests -B
 
 # 使用 Spring Boot Layertools 提取分层（优化最终镜像缓存）
-RUN java -Djarmode=layertools -jar target/*.jar extract --destination extracted
+RUN java -Djarmode=tools -jar target/*.jar extract --layers --launcher --destination extracted
 
 # --- 运行阶段 ---
 FROM eclipse-temurin:21-jre-alpine
