@@ -16,15 +16,33 @@ interface ModelVersion {
   type: 'classification' | 'detection' | 'segmentation'
   status: 'training' | 'deployed' | 'deprecated'
   accuracy: number
+  precision: number
   recall: number
   f1Score: number
+  modelPath: string
+  classMappingPath: string
+  numClasses: number
   trainDate: string
   description?: string
 }
 
+interface ModelRuntime {
+  model_id?: string
+  model_name: string
+  version: string
+  model_path: string
+  class_to_idx_path: string
+  num_classes: number
+  confidence_threshold: number
+  loaded: boolean
+}
+
 const models = ref<ModelVersion[]>([])
+const runtime = ref<ModelRuntime | null>(null)
 const dialogVisible = ref(false)
 const editMode = ref(false)
+const deployingId = ref('')
+const submitting = ref(false)
 const formData = ref<ModelVersion>({
   id: '',
   name: '',
@@ -32,8 +50,12 @@ const formData = ref<ModelVersion>({
   type: 'classification',
   status: 'training',
   accuracy: 0,
+  precision: 0,
   recall: 0,
   f1Score: 0,
+  modelPath: '',
+  classMappingPath: '',
+  numClasses: 18,
   trainDate: '',
   description: ''
 })
@@ -72,8 +94,12 @@ const handleAdd = () => {
     type: 'classification',
     status: 'training',
     accuracy: 0,
+    precision: 0,
     recall: 0,
     f1Score: 0,
+    modelPath: '',
+    classMappingPath: '',
+    numClasses: 18,
     trainDate: '',
     description: ''
   }
@@ -89,8 +115,12 @@ const loadModels = async () => {
       version: string
       status: ModelVersion['status']
       accuracy: number
+      precisionVal: number
       recallVal: number
       f1Score: number
+      modelPath: string
+      classMappingPath: string
+      numClasses: number
       createdAt: string
       description?: string
     }>; total: number }>('/model-versions?size=50')
@@ -101,14 +131,27 @@ const loadModels = async () => {
       type: item.modelType,
       status: item.status,
       accuracy: ratioToPercent(item.accuracy),
+      precision: ratioToPercent(item.precisionVal),
       recall: ratioToPercent(item.recallVal),
       f1Score: ratioToPercent(item.f1Score),
+      modelPath: item.modelPath,
+      classMappingPath: item.classMappingPath,
+      numClasses: item.numClasses,
       trainDate: item.createdAt,
       description: item.description
     }))
     updateChart()
   } catch {
     ElMessage.error('获取模型列表失败')
+  }
+}
+
+const loadRuntime = async () => {
+  try {
+    runtime.value = await request.get<ModelRuntime>('/model-versions/runtime')
+  } catch {
+    runtime.value = null
+    ElMessage.error('获取模型 Runtime 失败')
   }
 }
 
@@ -129,18 +172,36 @@ const handleDelete = async (id: string) => {
   }
 }
 
+const handleDeploy = async (id: string) => {
+  if (deployingId.value) return
+  deployingId.value = id
+  try {
+    await request.post('/model-versions/' + id + '/deploy')
+    ElMessage.success('模型部署成功')
+    await Promise.all([loadModels(), loadRuntime()])
+  } catch {
+    ElMessage.error('模型部署失败')
+  } finally {
+    deployingId.value = ''
+  }
+}
+
 const handleSubmit = async () => {
+  if (submitting.value) return
+  submitting.value = true
   try {
     const payload = {
       modelName: formData.value.name,
       modelType: formData.value.type,
       version: formData.value.version,
       accuracy: percentToRatio(formData.value.accuracy),
-      precisionVal: percentToRatio(formData.value.recall),
+      precisionVal: percentToRatio(formData.value.precision),
       recallVal: percentToRatio(formData.value.recall),
       f1Score: percentToRatio(formData.value.f1Score),
-      description: formData.value.description,
-      status: formData.value.status
+      modelPath: formData.value.modelPath,
+      classMappingPath: formData.value.classMappingPath,
+      numClasses: formData.value.numClasses,
+      description: formData.value.description
     }
     if (editMode.value) {
       await request.put('/model-versions/' + formData.value.id, payload)
@@ -150,9 +211,11 @@ const handleSubmit = async () => {
       ElMessage.success('添加成功')
     }
     dialogVisible.value = false
-    loadModels()
+    await loadModels()
   } catch {
     ElMessage.error(editMode.value ? '修改失败' : '添加失败')
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -284,7 +347,7 @@ const handleResize = () => {
 }
 
 onMounted(() => {
-  loadModels()
+  void Promise.all([loadModels(), loadRuntime()])
   nextTick(() => {
     initChart()
   })
@@ -308,6 +371,15 @@ onUnmounted(() => {
         <h1 class="page-title">模型版本管理</h1>
         <p class="page-subtitle">管理AI模型版本和性能监控</p>
       </div>
+    </div>
+
+    <div class="runtime-status">
+      <strong>当前 Runtime：</strong>
+      <template v-if="runtime?.loaded">
+        <span>{{ runtime.model_name }} {{ runtime.version }}</span>
+        <span class="runtime-detail">{{ runtime.num_classes }} 类 · {{ runtime.model_path }}</span>
+      </template>
+      <span v-else class="runtime-offline">未加载</span>
     </div>
 
     <!-- 统计卡片行 -->
@@ -413,6 +485,13 @@ onUnmounted(() => {
           <ElTableColumn label="操作" min-width="100" fixed="right" align="center">
             <template #default="{ row }">
               <div class="action-btns">
+                <ElButton
+                  v-if="(row as ModelVersion).status !== 'deployed'"
+                  type="success"
+                  link
+                  :loading="deployingId === row.id"
+                  @click="handleDeploy((row as ModelVersion).id)"
+                >部署</ElButton>
                 <ElButton type="primary" link :icon="Edit" @click="handleEdit(row as ModelVersion)" />
                 <ElButton type="danger" link :icon="Delete" @click="handleDelete((row as ModelVersion).id)" />
               </div>
@@ -444,21 +523,26 @@ onUnmounted(() => {
             <ElOption label="分割" value="segmentation" />
           </ElSelect>
         </ElFormItem>
-        <ElFormItem label="状态">
-          <ElSelect v-model="formData.status" style="width: 100%">
-            <ElOption label="训练中" value="training" />
-            <ElOption label="已部署" value="deployed" />
-            <ElOption label="已废弃" value="deprecated" />
-          </ElSelect>
-        </ElFormItem>
         <ElFormItem label="准确率">
           <ElInput v-model.number="formData.accuracy" placeholder="0-100" />
+        </ElFormItem>
+        <ElFormItem label="精确率">
+          <ElInput v-model.number="formData.precision" placeholder="0-100" />
         </ElFormItem>
         <ElFormItem label="召回率">
           <ElInput v-model.number="formData.recall" placeholder="0-100" />
         </ElFormItem>
         <ElFormItem label="F1分数">
           <ElInput v-model.number="formData.f1Score" placeholder="0-100" />
+        </ElFormItem>
+        <ElFormItem label="模型路径" required>
+          <ElInput v-model="formData.modelPath" placeholder="如 /app/best_model.pth" />
+        </ElFormItem>
+        <ElFormItem label="映射路径" required>
+          <ElInput v-model="formData.classMappingPath" placeholder="如 /app/class_to_idx.pth" />
+        </ElFormItem>
+        <ElFormItem label="类别数量" required>
+          <ElInput v-model.number="formData.numClasses" placeholder="如 18" />
         </ElFormItem>
         <ElFormItem label="描述">
           <ElInput v-model="formData.description" type="textarea" :rows="3" placeholder="请输入模型描述" />
@@ -467,7 +551,7 @@ onUnmounted(() => {
       <template #footer>
         <div class="dialog-footer">
           <ElButton @click="dialogVisible = false">取消</ElButton>
-          <ElButton type="primary" @click="handleSubmit">确定</ElButton>
+          <ElButton type="primary" :loading="submitting" @click="handleSubmit">确定</ElButton>
         </div>
       </template>
     </ElDialog>
@@ -486,6 +570,28 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--spacing-lg);
+}
+
+.runtime-status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+}
+
+.runtime-detail {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.runtime-offline {
+  color: var(--color-danger);
 }
 
 .page-title {

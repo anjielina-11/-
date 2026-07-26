@@ -22,6 +22,8 @@ interface Knowledge {
 const knowledge = ref<Knowledge[]>([])
 const dialogVisible = ref(false)
 const editMode = ref(false)
+const syncing = ref(false)
+const submitting = ref(false)
 const formData = ref<Knowledge>({
   id: '',
   title: '',
@@ -75,8 +77,8 @@ const handleReset = () => {
 
 const categoryLabels: Record<string, string> = { disease: '病害防治', pest: '虫害防治', culture: '栽培技术', other: '其他' }
 const categoryColors: Record<string, string> = { disease: 'danger', pest: 'warning', culture: 'success', other: 'info' }
-const statusLabels: Record<string, string> = { published: '已发布', draft: '草稿' }
-const statusColors: Record<string, string> = { published: 'success', draft: 'info' }
+const statusLabels: Record<string, string> = { published: '已发布', draft: '草稿', archived: '已归档' }
+const statusColors: Record<string, string> = { published: 'success', draft: 'info', archived: 'info' }
 
 const handleAdd = () => {
   editMode.value = false
@@ -99,17 +101,32 @@ const handleEdit = (row: Knowledge) => {
   dialogVisible.value = true
 }
 
-const handleDelete = async (id: string) => {
+const handleArchive = async (id: string) => {
   try {
-    await request.put('/knowledge/documents/' + id, { status: 'archived' })
-    knowledge.value = knowledge.value.filter(k => k.id !== id)
-    ElMessage.success('删除成功')
+    await request.post('/knowledge/documents/' + id + '/archive')
+    await loadKnowledge()
+    ElMessage.success('归档成功')
   } catch {
-    ElMessage.error('删除失败')
+    ElMessage.error('归档失败')
+  }
+}
+
+const handleSync = async () => {
+  if (syncing.value) return
+  syncing.value = true
+  try {
+    const count = await request.post<number>('/knowledge/documents/sync')
+    ElMessage.success(`已同步 ${count} 份已发布文档`)
+  } catch {
+    ElMessage.error('知识库同步失败')
+  } finally {
+    syncing.value = false
   }
 }
 
 const handleSubmit = async () => {
+  if (submitting.value) return
+  submitting.value = true
   try {
     const payload = {
       title: formData.value.title,
@@ -126,9 +143,11 @@ const handleSubmit = async () => {
       ElMessage.success('添加成功')
     }
     dialogVisible.value = false
-    loadKnowledge()
+    await loadKnowledge()
   } catch {
     ElMessage.error(editMode.value ? '修改失败' : '添加失败')
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -207,11 +226,15 @@ const getKeywordList = (keywords: string): string[] => {
           <ElSelect v-model="filterStatus" placeholder="状态筛选" clearable style="width: 130px">
             <ElOption label="已发布" value="published" />
             <ElOption label="草稿" value="draft" />
+            <ElOption label="已归档" value="archived" />
           </ElSelect>
           <ElButton type="primary" :icon="Search" @click="handleSearch">搜索</ElButton>
           <ElButton :icon="Refresh" @click="handleReset">重置</ElButton>
         </div>
-        <ElButton type="primary" :icon="Plus" @click="handleAdd">添加知识</ElButton>
+        <div class="filter-actions">
+          <ElButton :icon="Refresh" :loading="syncing" @click="handleSync">同步知识库</ElButton>
+          <ElButton type="primary" :icon="Plus" @click="handleAdd">添加知识</ElButton>
+        </div>
       </div>
     </div>
 
@@ -258,7 +281,13 @@ const getKeywordList = (keywords: string): string[] => {
           <template #default="{ row }">
             <div class="action-btns">
               <ElButton type="primary" link :icon="Edit" @click="handleEdit(row as Knowledge)" />
-              <ElButton type="danger" link :icon="Delete" @click="handleDelete((row as Knowledge).id)" />
+              <ElButton
+                v-if="(row as Knowledge).status !== 'archived'"
+                type="danger"
+                link
+                :icon="Delete"
+                @click="handleArchive((row as Knowledge).id)"
+              />
             </div>
           </template>
         </ElTableColumn>
@@ -307,7 +336,7 @@ const getKeywordList = (keywords: string): string[] => {
       <template #footer>
         <div class="dialog-footer">
           <ElButton @click="dialogVisible = false">取消</ElButton>
-          <ElButton type="primary" @click="handleSubmit">确定</ElButton>
+          <ElButton type="primary" :loading="submitting" @click="handleSubmit">确定</ElButton>
         </div>
       </template>
     </ElDialog>
