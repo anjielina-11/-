@@ -1,8 +1,8 @@
 package com.yunong.module.task;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yunong.exception.BusinessException;
 import com.yunong.exception.ErrorCode;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yunong.module.crop.entity.PlantingCycle;
 import com.yunong.module.crop.mapper.PlantingCycleMapper;
 import com.yunong.module.farm.entity.Field;
@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class TaskServiceTest {
@@ -23,11 +24,9 @@ class TaskServiceTest {
     @Test
     void rejectsStatusUpdateByNonAssigneeAndInvalidStatus() {
         FarmingTaskMapper mapper = mock(FarmingTaskMapper.class);
-        var task = new FarmingTask();
-        task.setId("task-1");
-        task.setAssigneeId("farmer-1");
+        var task = task("pending");
         when(mapper.selectById("task-1")).thenReturn(task);
-        var service = new TaskService(mapper, mock(PlantingCycleMapper.class), mock(FieldMapper.class));
+        var service = service(mapper);
 
         var ownershipError = assertThrows(BusinessException.class,
                 () -> service.updateStatus("task-1", "completed", "farmer-2", false));
@@ -36,6 +35,23 @@ class TaskServiceTest {
         var statusError = assertThrows(BusinessException.class,
                 () -> service.updateStatus("task-1", "unknown", "farmer-1", false));
         assertEquals(ErrorCode.TASK_STATUS_INVALID.getCode(), statusError.getCode());
+    }
+
+    @Test
+    void cancelsOnlyPendingTask() {
+        FarmingTaskMapper mapper = mock(FarmingTaskMapper.class);
+        var pending = task("pending");
+        when(mapper.selectById("task-1")).thenReturn(pending);
+        var service = service(mapper);
+
+        var cancelled = service.updateStatus("task-1", "cancelled", "farmer-1", false);
+        assertEquals("cancelled", cancelled.getStatus());
+        verify(mapper).updateById(pending);
+
+        pending.setStatus("in_progress");
+        var error = assertThrows(BusinessException.class,
+                () -> service.updateStatus("task-1", "cancelled", "farmer-1", false));
+        assertEquals(ErrorCode.TASK_CANNOT_CANCEL.getCode(), error.getCode());
     }
 
     @Test
@@ -70,4 +86,15 @@ class TaskServiceTest {
         assertEquals("防治：柑橘溃疡病", generated.getTitle());
     }
 
+    private TaskService service(FarmingTaskMapper mapper) {
+        return new TaskService(mapper, mock(PlantingCycleMapper.class), mock(FieldMapper.class));
+    }
+
+    private FarmingTask task(String status) {
+        var task = new FarmingTask();
+        task.setId("task-1");
+        task.setAssigneeId("farmer-1");
+        task.setStatus(status);
+        return task;
+    }
 }

@@ -50,5 +50,11 @@ def test_unknown_disease_error_is_raised_with_low_confidence(classifier):
     img.save(buf, format='JPEG')
     image_bytes = buf.getvalue()
     
-    with pytest.raises(UnknownDiseaseError):
+    with pytest.raises(UnknownDiseaseError) as exc_info:
         low_threshold_classifier.predict_from_bytes(image_bytes)
+
+    assert exc_info.value.confidence > 0
+    assert exc_info.value.disease_name in low_threshold_classifier.class_names
+    assert exc_info.value.threshold == pytest.approx(0.99)
+    assert "置信度" in str(exc_info.value)
+    assert "需要人工审核" in str(exc_info.value)

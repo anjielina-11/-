@@ -61,8 +61,9 @@ const menuConfig: Record<Role, MenuItem[]> = {
   ],
   admin: [
     { id: '1', name: '用户管理', path: '/admin/users', icon: 'User' },
-    { id: '2', name: '知识库管理', path: '/admin/knowledge', icon: 'BookOpen' },
-    { id: '3', name: '模型版本管理', path: '/admin/models', icon: 'Cpu' }
+    { id: '2', name: '作物品种管理', path: '/admin/crops', icon: 'Leaf' },
+    { id: '3', name: '知识库管理', path: '/admin/knowledge', icon: 'BookOpen' },
+    { id: '4', name: '模型版本管理', path: '/admin/models', icon: 'Cpu' }
   ]
 }
 

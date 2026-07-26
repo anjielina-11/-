@@ -19,5 +19,6 @@ public class Farm extends BaseEntity {
     private java.math.BigDecimal areaMu;
     private String contact;
     private String remark;
+    private String status;
     private String location;   // PostGIS GEOMETRY(Point, 4326)，当前接口按字符串表示
 }

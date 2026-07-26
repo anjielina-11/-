@@ -27,6 +27,12 @@ describe('acceptance interaction enhancements', () => {
     expect(source).not.toContain('querySelector<HTMLInputElement>')
   })
 
+  it('explains the local model scope before users upload unsupported images', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/views/DiseaseUpload.vue'), 'utf8')
+    expect(source).toContain('当前本地模型支持 18 类病虫害')
+    expect(source).toContain('不在支持范围或置信度不足的图片将转人工审核')
+  })
+
   it('can create and immediately select a farm while adding a field', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/views/FarmList.vue'), 'utf8')
     expect(source).toContain('新建农场')

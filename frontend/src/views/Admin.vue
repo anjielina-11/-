@@ -13,6 +13,7 @@ const router = useRouter()
 const currentRouteName = computed(() => {
   const nameMap: Record<string, string> = {
     'AdminUsers': '用户管理',
+    'AdminCrops': '作物品种管理',
     'AdminKnowledge': '知识库管理',
     'AdminModels': '模型版本管理'
   }

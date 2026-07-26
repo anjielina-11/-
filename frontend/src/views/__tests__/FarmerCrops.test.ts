@@ -16,7 +16,7 @@ describe('FarmerCrops planting form', () => {
 
     expect(source).toContain('新建作物品种')
     expect(source).toContain("request.post<CropOption>('/crops'")
-    expect(source).toContain('cropOptions.value.unshift(createdCrop)')
+    expect(source).toContain("cropOptions.value.unshift({ ...createdCrop, status: createdCrop.status || 'active' })")
     expect(source).toContain('formData.value.cropId = createdCrop.id')
   })
 

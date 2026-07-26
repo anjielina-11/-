@@ -7,6 +7,7 @@ interface RequestConfig {
   params?: Record<string, unknown>
   headers?: Record<string, string>
   responseType?: ResponseType
+  silent?: boolean
 }
 
 interface CustomAxiosInstance extends AxiosInstance {
@@ -51,33 +52,39 @@ service.interceptors.request.use(
 service.interceptors.response.use(
   (response: AxiosResponse) => unwrapApiResponse(response.data),
   (error: AxiosError) => {
+    const config = error.config as (InternalAxiosRequestConfig & { silent?: boolean }) | undefined
+    const backendMessage = (error.response?.data as { message?: string } | undefined)?.message
+    let message = backendMessage || error.message || '请求失败'
+
     if (error.response) {
-      const message = (error.response.data as { message?: string })?.message
       switch (error.response.status) {
         case 401: {
-        ElMessage.error(message || '登录已过期，请重新登录')
+          message = backendMessage || '登录已过期，请重新登录'
           const userStore = useUserStore()
           userStore.logout()
           void router.push('/login')
           break
         }
         case 403:
-        ElMessage.error(message || '没有权限执行此操作')
+          message = backendMessage || '没有权限执行此操作'
           break
         case 404:
-        ElMessage.error(message || '请求的资源不存在')
+          message = backendMessage || '请求的资源不存在'
           break
         case 500:
-        ElMessage.error(message || '服务器内部错误')
+          message = backendMessage || '服务器内部错误'
           break
         default:
-        ElMessage.error(message || '请求失败')
+          message = backendMessage || '请求失败'
       }
     } else if (error.request) {
-      ElMessage.error('网络连接失败，请检查网络')
+      message = '网络连接失败，请检查网络'
     } else {
-      ElMessage.error(error.message || '请求配置错误')
+      message = error.message || '请求配置错误'
     }
+
+    error.message = message
+    if (!config?.silent) ElMessage.error(message)
     return Promise.reject(error)
   }
 )

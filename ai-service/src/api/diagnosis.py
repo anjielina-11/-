@@ -171,11 +171,11 @@ async def diagnose_full(
             advice=advice_result
         )
     
-    except UnknownDiseaseError:
+    except UnknownDiseaseError as exc:
         return DiagnosisResult(
             classification=DiseaseClassification(
                 disease_name="未知病害",
-                confidence=0.0,
+                confidence=exc.confidence if exc.confidence is not None else 0.0,
                 severity="未知"
             ),
             weather=weather_data,

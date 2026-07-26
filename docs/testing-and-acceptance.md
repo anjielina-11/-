@@ -6,11 +6,11 @@
 
 | 层级 | 验证命令 | 最近结果 |
 |---|---|---|
-| Frontend 单元测试 | `npm.cmd --prefix frontend test -- --run` | 11 files，43 tests passed |
+| Frontend 单元测试 | `npm.cmd --prefix frontend test -- --run` | 12 files，49 tests passed |
 | Frontend 类型检查 | `npm.cmd exec -- vue-tsc --noEmit -p tsconfig.app.json`（在 `frontend/` 执行） | passed |
 | Frontend 构建 | `npm.cmd --prefix frontend run build` | Vite build passed |
-| Backend JUnit/Mockito | `mvn.cmd -q -f backend/pom.xml test` | passed |
-| AI 单元/API/RAG/Agent | `ai-service/.venv/Scripts/python.exe -m pytest ai-service/tests -q` | 30 passed，3 skipped |
+| Backend JUnit/Mockito | `mvn.cmd -q -f backend/pom.xml test` | 69 tests passed |
+| AI 单元/API/RAG/Agent | `ai-service/.venv/Scripts/python.exe -m pytest ai-service/tests -q` | 31 passed，3 skipped |
 | 跨服务接口集成 | `ai-service/.venv/Scripts/python.exe -m pytest tests/integration/test_api.py -q` | 10 passed |
 | Docker Compose | `docker compose -f deploy/docker-compose.yml ps` | 6/6 healthy |
 
@@ -40,7 +40,7 @@ Integration 10 项覆盖：Backend/AI 健康、知识发布同步与 RAG、模�
 
 | 检查项 | 结果 |
 |---|---|
-| Flyway `V1`–`V5` | 全部 `success=true` |
+| Flyway `V1`–`V6` | 全部 `success=true` |
 | 主外键关系 | 农场—地块—种植周期—观察—诊断—任务链路写入正常 |
 | 唯一约束 | 用户名、手机号、图片哈希、模型名称版本、审核队列诊断唯一 |
 | 索引 | 基础、组合、PostGIS GIST、pgvector ivfflat 索引已创建 |
@@ -80,10 +80,10 @@ ai-service\.venv\Scripts\python.exe tests/performance/smoke_test.py `
 |---|---:|
 | 请求数 / 并发 | 60 / 6 |
 | 成功率 | 100%（60/60） |
-| 吞吐量 | 219.18 requests/s |
-| Median | 19.15 ms |
-| P95 | 42.19 ms |
-| Max | 48.76 ms |
+| 吞吐量 | 256.12 requests/s |
+| Median | 16.81 ms |
+| P95 | 42.91 ms |
+| Max | 55.89 ms |
 
 结果文件：`docs/test-evidence/performance-smoke-2026-07-26.json`。该数据仅证明课程演示环境无明显阻塞，不等同于生产压测，也不承诺公网 QPS 或 SLA。
 

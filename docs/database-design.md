@@ -4,7 +4,7 @@
 
 - 数据库：PostgreSQL，启用 PostGIS、pgvector 和 UUID 扩展。
 - ORM/访问层：MyBatis-Plus。
-- 结构版本：Flyway；应用启动时按 `V1` 至 `V5` 顺序迁移。
+- 结构版本：Flyway；应用启动时按 `V1` 至 `V6` 顺序迁移。
 - 文件：MinIO 保存病害原图，数据库只保存对象路径、SHA-256、诊断结果和业务关联。
 
 ## 2. 核心表与主外键
@@ -12,9 +12,9 @@
 | 表 | 主键 | 主要外键 | 用途 |
 |---|---|---|---|
 | `users` | `id` UUID | — | 用户、角色、密码哈希和状态 |
-| `farms` | `id` UUID | `owner_id → users.id` | 农场及空间位置 |
+| `farms` | `id` UUID | `owner_id → users.id` | 农场、空间位置与 `active/archived` 生命周期 |
 | `fields` | `id` UUID | `farm_id → farms.id` | 农场地块 |
-| `crops` | `id` UUID | — | 作物、品种和分类 |
+| `crops` | `id` UUID | — | 作物、品种、分类与 `active/inactive` 生命周期 |
 | `planting_cycles` | `id` UUID | `field_id → fields.id`；`crop_id → crops.id`；`created_by → users.id` | 种植周期和生育期 |
 | `observations` | `id` UUID | `cycle_id → planting_cycles.id`；`user_id → users.id` | 田间观察与图片元数据 |
 | `diagnosis_records` | `id` UUID | `observation_id → observations.id`；`reviewer_id → users.id` | AI 结果、原图路径、审核与反馈 |
@@ -49,6 +49,7 @@ ER 图见 [architecture.md](architecture.md)。
 - 空间查询：农场和地块 `location` 使用 PostGIS GIST 索引。
 - RAG：`knowledge_documents.embedding` 使用 pgvector `ivfflat` cosine 索引。
 - `V3__optimize_query_indexes.sql` 增加 owner/status/time 等组合索引，减少列表和看板扫描。
+- `V6__resource_lifecycle_status.sql` 增加 `farms.status`、`crops.status` 及对应组合索引。
 
 ## 5. 事务设计
 
@@ -71,8 +72,9 @@ Spring Service 使用 `@Transactional` 保护需要原子提交的多写操作�
 | V3 | `V3__optimize_query_indexes.sql` | 常用列表和状态查询组合索引 |
 | V4 | `V4__seed_common_crops.sql` | 常见作物和品种基础数据 |
 | V5 | `V5__ai_integration.sql` | 模型 Runtime 字段、模型/知识/Agent 演示数据与状态对接 |
+| V6 | `V6__resource_lifecycle_status.sql` | 农场归档、作物停用状态及查询索引 |
 
-禁止直接手工修改已执行的 migration；后续结构变化新建 `V6__*.sql`。
+禁止直接手工修改已执行的 migration；后续结构变化从 `V7__*.sql` 继续新增。
 
 ## 7. 数据库验收
 

@@ -8,7 +8,24 @@ from ..core.paths import resolve_service_path
 
 
 class UnknownDiseaseError(Exception):
-    def __init__(self, message="未知病害，需要人工审核"):
+    def __init__(
+        self,
+        message=None,
+        *,
+        disease_name=None,
+        confidence=None,
+        threshold=None,
+    ):
+        self.disease_name = disease_name
+        self.confidence = confidence
+        self.threshold = threshold
+        if message is None and confidence is not None and threshold is not None:
+            candidate = disease_name or "未知候选"
+            message = (
+                f"最高候选 {candidate}，置信度 {confidence:.4f} "
+                f"低于阈值 {threshold:.4f}，需要人工审核"
+            )
+        message = message or "未知病害，需要人工审核"
         super().__init__(message)
         self.message = message
 
@@ -63,7 +80,11 @@ class DiseaseClassifier:
         disease_name = self.idx_to_class[predicted_idx.item()]
         
         if confidence < self.threshold:
-            raise UnknownDiseaseError(f"置信度 {confidence:.4f} 低于阈值 {self.threshold}，未知病害，需要人工审核")
+            raise UnknownDiseaseError(
+                disease_name=disease_name,
+                confidence=confidence,
+                threshold=self.threshold,
+            )
         
         return disease_name, confidence
 
@@ -80,6 +101,10 @@ class DiseaseClassifier:
         disease_name = self.idx_to_class[predicted_idx.item()]
         
         if confidence < self.threshold:
-            raise UnknownDiseaseError(f"置信度 {confidence:.4f} 低于阈值 {self.threshold}，未知病害，需要人工审核")
+            raise UnknownDiseaseError(
+                disease_name=disease_name,
+                confidence=confidence,
+                threshold=self.threshold,
+            )
         
         return disease_name, confidence

@@ -39,8 +39,9 @@ public class FarmController {
     public R<PageResult<Farm>> list(
             @AuthenticationPrincipal UserDetailsImpl principal,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return R.ok(service.listByOwner(principal.getUserId(), page, size));
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "false") boolean includeArchived) {
+        return R.ok(service.listByOwner(principal.getUserId(), page, size, includeArchived));
     }
 
     @GetMapping("/accessible")
@@ -48,8 +49,9 @@ public class FarmController {
     @Operation(summary = "可访问农场列表")
     public R<PageResult<Farm>> listAccessible(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "100") int size) {
-        return R.ok(service.listAll(page, size));
+            @RequestParam(defaultValue = "100") int size,
+            @RequestParam(defaultValue = "false") boolean includeArchived) {
+        return R.ok(service.listAll(page, size, includeArchived));
     }
 
     @GetMapping("/{id}")
@@ -65,6 +67,15 @@ public class FarmController {
     public R<Farm> update(@PathVariable String id, @RequestBody Farm update,
                           @AuthenticationPrincipal UserDetailsImpl principal) {
         return R.ok(service.update(id, update, principal.getUserId()));
+    }
+
+
+    @PutMapping("/{id}/status")
+    @AuditLog(action = "更新农场状态")
+    @Operation(summary = "归档或恢复农场")
+    public R<Farm> updateStatus(@PathVariable String id, @RequestBody StatusUpdateRequest request,
+                                @AuthenticationPrincipal UserDetailsImpl principal) {
+        return R.ok(service.updateStatus(id, request.status(), principal.getUserId()));
     }
 
     @PostMapping("/{farmId}/fields")
@@ -103,4 +114,5 @@ public class FarmController {
         service.deleteField(farmId, fieldId, principal.getUserId());
         return R.ok();
     }
+    public record StatusUpdateRequest(String status) {}
 }

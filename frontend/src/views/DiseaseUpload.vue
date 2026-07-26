@@ -247,6 +247,10 @@ onUnmounted(() => {
                   </div>
                   <p class="upload-text">将图片拖到此处</p>
                   <p class="upload-hint">支持 JPG/PNG 格式，单张不超过 20MB</p>
+                  <p class="model-scope-hint">
+                    <strong>当前本地模型支持 18 类病虫害</strong><br>
+                    覆盖水稻、番茄、黄瓜、玉米、柑橘、棉花、辣椒、马铃薯、大豆和小麦；不在支持范围或置信度不足的图片将转人工审核。
+                  </p>
                   <ElButton type="primary" plain class="select-image-button">
                     选择病害图片
                   </ElButton>

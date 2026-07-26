@@ -14,6 +14,7 @@ import {
   ElSelect,
   ElOption,
   ElCard,
+  ElTag,
   type FormInstance
 } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete } from '@element-plus/icons-vue'
@@ -36,7 +37,11 @@ interface PageResult<T> {
   total: number
 }
 
-type Farm = FarmOption
+type Farm = FarmOption & {
+  address?: string
+  areaMu?: number
+  status?: 'active' | 'archived'
+}
 
 interface FieldResponse {
   id: string
@@ -50,6 +55,9 @@ interface FieldResponse {
 const tableData = ref<IFarm[]>([])
 const allFields = ref<IFarm[]>([])
 const farms = ref<Farm[]>([])
+const managedFarms = ref<Farm[]>([])
+const farmManagementVisible = ref(false)
+const farmManagementLoading = ref(false)
 const loading = ref(false)
 const searchKeyword = ref('')
 
@@ -156,6 +164,51 @@ const applyFilter = () => {
   tableData.value = filtered.slice(start, start + pageSize.value)
 }
 
+const loadManagedFarms = async () => {
+  farmManagementLoading.value = true
+  try {
+    const page = await request.get<PageResult<Farm>>('/farms', {
+      params: { size: 100, includeArchived: true }
+    })
+    managedFarms.value = page.list
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '获取农场列表失败')
+  } finally {
+    farmManagementLoading.value = false
+  }
+}
+
+const openFarmManagement = async () => {
+  farmManagementVisible.value = true
+  await loadManagedFarms()
+}
+
+const updateFarmStatus = async (farm: Farm) => {
+  const archiving = farm.status !== 'archived'
+  try {
+    await ElMessageBox.confirm(
+      archiving
+        ? `归档农场「${farm.name}」后将不能新增或修改其地块，历史数据会保留。`
+        : `确定恢复农场「${farm.name}」吗？`,
+      archiving ? '确认归档' : '确认恢复',
+      {
+        confirmButtonText: archiving ? '归档' : '恢复',
+        cancelButtonText: '取消',
+        type: archiving ? 'warning' : 'info'
+      }
+    )
+    const payload = archiving
+      ? { status: 'archived' }
+      : { status: 'active' }
+    await request.put(`/farms/${farm.id}/status`, payload, { silent: true })
+    ElMessage.success(archiving ? '农场已归档' : '农场已恢复')
+    await Promise.all([loadManagedFarms(), fetchData()])
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error instanceof Error ? error.message : '农场状态修改失败')
+  }
+}
+
 const createFirstFarm = async (): Promise<Farm> => {
   const { value } = await ElMessageBox.prompt(
     '当前账号还没有农场，请先创建一个农场后再新增地块。',
@@ -240,11 +293,13 @@ const handleDelete = async (row: IFarm) => {
       '确认删除',
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
     )
-    await request.delete(`/farms/${row.farmId}/fields/${row.id}`)
+    await request.delete(`/farms/${row.farmId}/fields/${row.id}`, { silent: true })
     ElMessage.success('删除成功')
     await fetchData()
   } catch (error) {
-    if (error !== 'cancel' && error !== 'close') ElMessage.error('删除失败')
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(error instanceof Error ? error.message : '删除地块失败')
+    }
   }
 }
 
@@ -306,7 +361,10 @@ onMounted(() => {
         <h1 class="page-title">地块管理</h1>
         <p class="page-subtitle">管理您的农场和地块信息</p>
       </div>
-      <ElButton type="primary" :icon="Plus" @click="handleAdd">新增地块</ElButton>
+      <div class="header-actions">
+        <ElButton @click="openFarmManagement">管理农场</ElButton>
+        <ElButton type="primary" :icon="Plus" @click="handleAdd">新增地块</ElButton>
+      </div>
     </div>
 
     <!-- 搜索栏 -->
@@ -377,6 +435,45 @@ onMounted(() => {
 
     <!-- 新增/编辑对话框 -->
     <ElDialog
+      v-model="farmManagementVisible"
+      title="管理农场"
+      width="720px"
+      :close-on-click-modal="false"
+      class="custom-dialog"
+    >
+      <ElTable :data="managedFarms" :loading="farmManagementLoading" class="custom-table">
+        <ElTableColumn prop="name" label="农场名称" min-width="150" />
+        <ElTableColumn prop="address" label="地址" min-width="180">
+          <template #default="{ row }">{{ row.address || '-' }}</template>
+        </ElTableColumn>
+        <ElTableColumn prop="areaMu" label="面积（亩）" min-width="100" align="right">
+          <template #default="{ row }">{{ row.areaMu ?? '-' }}</template>
+        </ElTableColumn>
+        <ElTableColumn prop="status" label="状态" width="100" align="center">
+          <template #default="{ row }">
+            <ElTag :type="row.status === 'archived' ? 'info' : 'success'">
+              {{ row.status === 'archived' ? '已归档' : '使用中' }}
+            </ElTag>
+          </template>
+        </ElTableColumn>
+        <ElTableColumn label="操作" width="100" align="center">
+          <template #default="{ row }">
+            <ElButton
+              :type="row.status === 'archived' ? 'success' : 'warning'"
+              link
+              @click="updateFarmStatus(row as Farm)"
+            >
+              {{ row.status === 'archived' ? '恢复' : '归档' }}
+            </ElButton>
+          </template>
+        </ElTableColumn>
+      </ElTable>
+      <template #footer>
+        <ElButton @click="farmManagementVisible = false">关闭</ElButton>
+      </template>
+    </ElDialog>
+
+    <ElDialog
       :title="dialogTitle"
       v-model="dialogVisible"
       width="520px"
@@ -443,6 +540,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.header-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
 /* 搜索卡片 */
 .search-card {
   margin-bottom: var(--spacing-md);

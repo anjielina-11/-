@@ -23,4 +23,5 @@ public class Crop extends BaseEntity {
     private BigDecimal optimalTempMax;
     private String description;
     private String imageUrl;
+    private String status;
 }

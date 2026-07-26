@@ -12,7 +12,7 @@ class FarmControllerMetadataTest {
     @Test
     @DisplayName("可访问农场接口应提供可读的 Swagger 描述")
     void accessibleFarmEndpointShouldHaveReadableSummary() throws NoSuchMethodException {
-        var method = FarmController.class.getMethod("listAccessible", int.class, int.class);
+        var method = FarmController.class.getMethod("listAccessible", int.class, int.class, boolean.class);
 
         assertEquals("可访问农场列表", method.getAnnotation(Operation.class).summary());
     }

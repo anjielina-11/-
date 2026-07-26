@@ -89,6 +89,13 @@ public class TaskService {
         var task = mapper.selectById(id);
         if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         assertAssignee(task, currentUserId, privileged);
+        if ("cancelled".equals(status) && !"pending".equals(task.getStatus())) {
+            throw new BusinessException(ErrorCode.TASK_CANNOT_CANCEL);
+        }
+        if (("completed".equals(task.getStatus()) || "cancelled".equals(task.getStatus()))
+                && !task.getStatus().equals(status)) {
+            throw new BusinessException(ErrorCode.TASK_STATUS_INVALID, "已完成或已取消的任务不能再次流转");
+        }
         task.setStatus(status);
         if ("completed".equals(status)) task.setCompletedAt(LocalDateTime.now());
         mapper.updateById(task);

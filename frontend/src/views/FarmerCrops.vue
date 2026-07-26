@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { ElCard, ElTable, ElTableColumn, ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElDatePicker, ElSelect, ElOption, ElMessage, ElTag } from 'element-plus'
+import { ElCard, ElTable, ElTableColumn, ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElDatePicker, ElSelect, ElOption, ElMessage, ElMessageBox, ElTag } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import * as echarts from '@/utils/echarts'
 import request from '@/utils/request'
@@ -44,6 +44,7 @@ interface CropOption {
   category?: string
   variety?: string
   growthDays?: number
+  status?: 'active' | 'inactive'
 }
 
 interface NewCropForm {
@@ -112,12 +113,21 @@ const growingCount = computed(() => crops.value.filter(c => c.status === '生长
 const pendingCount = computed(() => crops.value.filter(c => c.status === '待收获').length)
 const harvestedCount = computed(() => crops.value.filter(c => c.status === '已收获').length)
 const totalArea = computed(() => crops.value.reduce((sum, c) => sum + c.area, 0))
+const activeCropOptions = computed(() =>
+  cropOptions.value.filter(crop => crop.status !== 'inactive')
+)
+const selectableCropOptions = computed(() => {
+  if (!editMode.value) return activeCropOptions.value
+  const selected = cropOptions.value.find(crop => crop.id === formData.value.cropId)
+  if (!selected || selected.status !== 'inactive') return activeCropOptions.value
+  return [selected, ...activeCropOptions.value]
+})
 
 const loadCrops = async () => {
   try {
     const [cycles, availableCrops, farmPage] = await Promise.all([
       request.get<PageResult<PlantingCycle>>('/planting-cycles?size=100'),
-      request.get<PageResult<CropOption>>('/crops?size=100'),
+      request.get<PageResult<CropOption>>('/crops', { params: { size: 100, includeInactive: true } }),
       request.get<PageResult<FarmOption>>('/farms?size=100')
     ])
     cropOptions.value = availableCrops.list
@@ -265,7 +275,7 @@ const handleCreateCrop = async () => {
       variety: newCropForm.value.variety.trim() || undefined,
       growthDays: newCropForm.value.growthDays || undefined
     })
-    cropOptions.value.unshift(createdCrop)
+    cropOptions.value.unshift({ ...createdCrop, status: createdCrop.status || 'active' })
     formData.value.cropId = createdCrop.id
     cropDialogVisible.value = false
     ElMessage.success('作物品种创建成功，已自动选中')
@@ -280,7 +290,7 @@ const handleAdd = () => {
   editMode.value = false
   formData.value = {
     id: '',
-    cropId: cropOptions.value[0]?.id || '',
+    cropId: activeCropOptions.value[0]?.id || '',
     fieldId: fieldOptions.value[0]?.id || '',
     name: '',
     fieldName: '',
@@ -301,13 +311,40 @@ const handleEdit = (row: Crop) => {
 }
 
 const handleDelete = async (id: string) => {
+  const cycle = crops.value.find(item => item.id === id)
   try {
-    await request.delete(`/planting-cycles/${id}`)
+    await ElMessageBox.confirm(
+      `确定删除种植记录「${cycle?.name || ''}」吗？如已产生观测或农事任务，系统将阻止删除。`,
+      '确认删除',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+    await request.delete(`/planting-cycles/${id}`, { silent: true })
     crops.value = crops.value.filter(c => c.id !== id)
     ElMessage.success('删除成功')
     updateChart()
   } catch (error) {
-    ElMessage.error('删除失败')
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error instanceof Error ? error.message : '删除种植记录失败')
+  }
+}
+
+const completeCycle = async (row: Crop) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定将「${row.name}」的种植周期标记为已收获吗？`,
+      '结束种植周期',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+    const actualHarvestDate = new Date().toISOString().slice(0, 10)
+    await request.put(`/planting-cycles/${row.id}`, {
+      status: 'completed',
+      actualHarvestDate
+    }, { silent: true })
+    ElMessage.success('种植周期已结束')
+    await loadCrops()
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error instanceof Error ? error.message : '结束种植周期失败')
   }
 }
 
@@ -460,10 +497,16 @@ onUnmounted(() => {
               <ElTag :type="statusColors[row.status]" size="small" effect="light">{{ row.status }}</ElTag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="100" fixed="right" align="center">
+          <el-table-column label="操作" width="190" fixed="right" align="center">
             <template #default="{ row }">
               <div class="action-btns">
                 <ElButton type="primary" link :icon="Edit" @click="handleEdit(row as Crop)" />
+                <ElButton
+                  v-if="(row as Crop).status !== '已收获'"
+                  type="success"
+                  link
+                  @click="completeCycle(row as Crop)"
+                >结束周期</ElButton>
                 <ElButton type="danger" link :icon="Delete" @click="handleDelete((row as Crop).id)" />
               </div>
             </template>
@@ -484,7 +527,7 @@ onUnmounted(() => {
         <ElFormItem label="作物名称" required>
           <div class="crop-select-row">
             <ElSelect v-model="formData.cropId" placeholder="请选择作物" style="width: 100%">
-              <ElOption v-for="crop in cropOptions" :key="crop.id" :label="crop.variety ? `${crop.name} / ${crop.variety}` : crop.name" :value="crop.id" />
+              <ElOption v-for="crop in selectableCropOptions" :key="crop.id" :label="crop.variety ? `${crop.name} / ${crop.variety}` : crop.name" :value="crop.id" :disabled="crop.status === 'inactive' && crop.id !== formData.cropId" />
             </ElSelect>
             <ElButton type="primary" plain :icon="Plus" @click="openCropDialog">新建作物品种</ElButton>
           </div>

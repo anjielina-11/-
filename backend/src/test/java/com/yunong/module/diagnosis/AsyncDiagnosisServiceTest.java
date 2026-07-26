@@ -110,4 +110,45 @@ class AsyncDiagnosisServiceTest {
         verify(diagnosisMapper).updateById(diagnosis);
         server.verify();
     }
+
+    @Test
+    void preservesRejectedModelConfidenceForTechnicianReview() throws Exception {
+        var restTemplate = new RestTemplate();
+        var server = MockRestServiceServer.bindTo(restTemplate).build();
+        var minio = mock(MinioClient.class);
+        when(minio.getObject(any(GetObjectArgs.class))).thenReturn(
+                new io.minio.GetObjectResponse(null, "bucket", "region", "diagnosis/leaf.png",
+                        new ByteArrayInputStream("image-bytes".getBytes())));
+        var minioConfig = new MinioConfig();
+        minioConfig.setBucket("yunnong-images");
+
+        var diagnosisMapper = mock(DiagnosisRecordMapper.class);
+        var agentRunService = mock(AgentRunService.class);
+        var diagnosis = new DiagnosisRecord();
+        diagnosis.setId("diagnosis-low-confidence");
+        when(diagnosisMapper.selectById("diagnosis-low-confidence")).thenReturn(diagnosis);
+        var run = new AgentRun();
+        run.setId("run-low-confidence");
+        when(agentRunService.start(eq("diagnosis-low-confidence"), any(), any(), any())).thenReturn(run);
+
+        var aiClient = new AiServiceClient(restTemplate, "http://ai:8000");
+        var service = new AsyncDiagnosisService(
+                diagnosisMapper, agentRunService, mock(ReviewQueueService.class),
+                mock(DiagnosisContextService.class), aiClient, restTemplate, minio, minioConfig,
+                "http://ai:8000");
+
+        server.expect(requestTo("http://ai:8000/api/v1/diagnosis/simple?crop_info=%E6%9C%AA%E7%9F%A5%E4%BD%9C%E7%89%A9"))
+                .andRespond(withSuccess("{\"disease_name\":\"未知病害\",\"confidence\":0.176073,\"description\":\"最高候选 potato_late_blight，置信度 0.1761 低于阈值 0.6000\"}", MediaType.APPLICATION_JSON));
+
+        service.processAsync("diagnosis-low-confidence", "diagnosis/leaf.png");
+
+        assertThat(diagnosis.getDiseaseName()).isEqualTo("未知病害");
+        assertThat(diagnosis.getConfidence()).isEqualByComparingTo("0.176073");
+        assertThat(diagnosis.getReviewStatus()).isEqualTo("pending_review");
+        var savedResult = JSONUtil.parseObj(diagnosis.getAiResult());
+        assertThat(savedResult.getBigDecimal("confidence")).isEqualByComparingTo("0.176073");
+        assertThat(savedResult.getStr("treatment")).contains("17.61%");
+        server.verify();
+    }
+
 }

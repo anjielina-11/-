@@ -2,9 +2,9 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   ElTable, ElTableColumn, ElButton, ElDialog, ElForm, ElFormItem,
-  ElInput, ElSelect, ElOption, ElMessage, ElTag
+  ElInput, ElSelect, ElOption, ElMessage, ElMessageBox, ElTag
 } from 'element-plus'
-import { Search, Refresh, Plus, Edit, Open, TurnOff, Delete } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Edit, Open, TurnOff } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { normalizeBackendRole } from '@/stores/user'
 
@@ -123,24 +123,27 @@ const handleEdit = (row: User) => {
   dialogVisible.value = true
 }
 
-const handleDelete = async (id: string) => {
-  try {
-    await request.put('/users/' + id + '/status', { status: 0 })
-    ElMessage.success('用户已禁用')
-    await loadUsers()
-  } catch {
-    ElMessage.error('禁用失败')
-  }
-}
-
 const handleToggleStatus = async (row: User) => {
+  const disabling = row.status === 'active'
   try {
-    const status = row.status === 'active' ? 0 : 1
-    await request.put('/users/' + row.id + '/status', { status })
+    await ElMessageBox.confirm(
+      disabling
+        ? `禁用用户「${row.name}」后，该账号将无法登录。是否继续？`
+        : `确定要重新启用用户「${row.name}」吗？`,
+      disabling ? '确认禁用' : '确认启用',
+      {
+        confirmButtonText: disabling ? '禁用用户' : '启用用户',
+        cancelButtonText: '取消',
+        type: disabling ? 'warning' : 'info'
+      }
+    )
+    const status = disabling ? 0 : 1
+    await request.put('/users/' + row.id + '/status', { status }, { silent: true })
     row.status = status === 1 ? 'active' : 'inactive'
-    ElMessage.success(row.status === 'active' ? '已启用' : '已禁用')
-  } catch {
-    ElMessage.error('操作失败')
+    ElMessage.success(disabling ? '用户已禁用' : '用户已启用')
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error instanceof Error ? error.message : '用户状态修改失败')
   }
 }
 
@@ -266,8 +269,9 @@ onMounted(() => {
                 link
                 :icon="row.status === 'active' ? TurnOff : Open"
                 @click="handleToggleStatus(row as User)"
-              />
-              <ElButton type="danger" link :icon="Delete" @click="handleDelete((row as User).id)" />
+              >
+                {{ row.status === 'active' ? '禁用用户' : '启用用户' }}
+              </ElButton>
             </div>
           </template>
         </ElTableColumn>

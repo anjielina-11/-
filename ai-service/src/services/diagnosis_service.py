@@ -85,7 +85,7 @@ class DiagnosisService:
             return [
                 DiagnosisItem(
                     disease_name="未知病害",
-                    confidence=0.0,
+                    confidence=e.confidence if e.confidence is not None else 0.0,
                     description=str(e),
                     recommended_treatment="需要人工审核确认病害类型",
                     severity="未知"

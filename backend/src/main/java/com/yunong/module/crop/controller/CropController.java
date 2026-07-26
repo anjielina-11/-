@@ -9,6 +9,7 @@ import com.yunong.module.crop.service.CropService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.yunong.security.UserDetailsImpl;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +25,7 @@ public class CropController {
     private final CropService service;
 
     @PostMapping("/crops")
+    @PreAuthorize("hasRole('ADMIN')")
     @AuditLog(action = "添加作物品种")
     @Operation(summary = "添加作物品种")
     public R<Crop> createCrop(@Valid @RequestBody Crop crop) {
@@ -35,14 +37,32 @@ public class CropController {
     public R<PageResult<Crop>> listCrops(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String category) {
-        return R.ok(service.listCrops(page, size, category));
+            @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "false") boolean includeInactive) {
+        return R.ok(service.listCrops(page, size, category, includeInactive));
     }
 
     @GetMapping("/crops/{id}")
     @Operation(summary = "作物详情")
     public R<Crop> getCrop(@PathVariable String id) {
         return R.ok(service.getCrop(id));
+    }
+
+
+    @PutMapping("/crops/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @AuditLog(action = "更新作物品种")
+    @Operation(summary = "管理员编辑作物品种")
+    public R<Crop> updateCrop(@PathVariable String id, @RequestBody Crop update) {
+        return R.ok(service.updateCrop(id, update));
+    }
+
+    @PutMapping("/crops/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    @AuditLog(action = "更新作物状态")
+    @Operation(summary = "管理员停用或启用作物")
+    public R<Crop> updateCropStatus(@PathVariable String id, @RequestBody CropStatusRequest request) {
+        return R.ok(service.updateCropStatus(id, request.status()));
     }
 
     @PostMapping("/planting-cycles")
@@ -80,4 +100,5 @@ public class CropController {
                                         @AuthenticationPrincipal UserDetailsImpl principal) {
         return R.ok(service.updateCycle(id, update, principal.getUserId()));
     }
+    public record CropStatusRequest(String status) {}
 }

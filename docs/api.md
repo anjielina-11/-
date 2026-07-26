@@ -30,13 +30,15 @@
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET/POST | `/api/v1/farms` | 查询/创建农场 |
+| GET/POST | `/api/v1/farms` | 查询/创建农场；GET 支持 `includeArchived` |
 | GET | `/api/v1/farms/accessible` | 查询当前角色可访问农场 |
 | GET/PUT | `/api/v1/farms/{id}` | 农场详情/修改 |
+| PUT | `/api/v1/farms/{id}/status` | 归档或恢复农场 |
 | GET/POST | `/api/v1/farms/{farmId}/fields` | 查询/创建地块 |
 | PUT/DELETE | `/api/v1/farms/{farmId}/fields/{fieldId}` | 修改/删除地块 |
-| GET/POST | `/api/v1/crops` | 查询/创建作物 |
-| GET | `/api/v1/crops/{id}` | 作物详情 |
+| GET/POST | `/api/v1/crops` | 查询作物；GET 支持 `includeInactive`，POST 仅管理员 |
+| GET/PUT | `/api/v1/crops/{id}` | 作物详情/管理员编辑 |
+| PUT | `/api/v1/crops/{id}/status` | 管理员停用或启用作物 |
 | GET/POST | `/api/v1/planting-cycles` | 查询/创建种植周期 |
 | PUT/DELETE | `/api/v1/planting-cycles/{id}` | 修改/删除种植周期 |
 
@@ -120,7 +122,7 @@ Backend 在 Compose 内通过 `http://ai-service:8000` 调用；浏览器调试�
 | `POST /api/v1/diagnosis/upload` | multipart/form-data | `file`、`cycleId` | `description`；支持 JPG/PNG/WebP/GIF，单文件最大 20MB |
 | `GET /api/v1/diagnosis` | Query | 无 | `page`、`size`、`reviewStatus`、`diseaseName` |
 | `POST /api/v1/diagnosis/{id}/review` | Path + Query | `id`、`status` | `status=approved/rejected`，`comment` 可选 |
-| `PUT /api/v1/tasks/{id}/status` | Path + Query/Body | `id`、目标状态 | 状态必须满足后端流转规则 |
+| `PUT /api/v1/tasks/{id}/status` | Path + Query/Body | `id`、目标状态 | `cancelled` 仅允许从 `pending` 进入；`completed/cancelled` 为终态 |
 | `POST /api/v1/weather/fetch` | Query/Body | 目标农场或位置参数 | 手动刷新当天起未来七天天气 |
 | `POST /api/v1/knowledge/documents` | JSON Body | `title`、`content` | `category`、`source`、`version`、`status` |
 | `POST /api/v1/model-versions/{id}/deploy` | Path | `id` | 仅管理员；校验模型路径、类别映射和类别数 |

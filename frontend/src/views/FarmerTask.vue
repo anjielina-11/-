@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { ElCard, ElTable, ElTableColumn, ElDialog, ElButton, ElTag, ElMessage, ElInput } from 'element-plus'
+import { ElCard, ElTable, ElTableColumn, ElDialog, ElButton, ElTag, ElMessage, ElMessageBox, ElInput } from 'element-plus'
 import * as echarts from '@/utils/echarts'
 import request from '@/utils/request'
 import { formatDiseaseTaskTitle } from '@/utils/domainMappers'
@@ -10,7 +10,7 @@ interface Task {
   title: string
   fieldName: string
   dueDate: string
-  status: '待执行' | '执行中' | '已完成'
+  status: '待执行' | '执行中' | '已完成' | '已取消'
   description?: string
   remark?: string
 }
@@ -42,12 +42,14 @@ let chartInstance: echarts.ECharts | null = null
 const statusColors: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
   '待执行': 'warning',
   '执行中': 'info',
-  '已完成': 'success'
+  '已完成': 'success',
+  '已取消': 'info'
 }
 
 const pendingCount = computed(() => tasks.value.filter(t => t.status === '待执行').length)
 const executingCount = computed(() => tasks.value.filter(t => t.status === '执行中').length)
 const completedCount = computed(() => tasks.value.filter(t => t.status === '已完成').length)
+const cancelledCount = computed(() => tasks.value.filter(t => t.status === '已取消').length)
 
 const isToday = (dateStr: string) => {
   const today = new Date()
@@ -65,7 +67,7 @@ const loadTasks = async () => {
       title: formatDiseaseTaskTitle(task.title),
       fieldName: task.fieldName || '未关联地块',
       dueDate: task.scheduledDate ?? '-',
-      status: task.status === 'pending' ? '待执行' : task.status === 'in_progress' ? '执行中' : '已完成',
+      status: task.status === 'cancelled' ? '已取消' : task.status === 'pending' ? '待执行' : task.status === 'in_progress' ? '执行中' : '已完成',
       description: task.description,
       remark: task.remark
     }))
@@ -205,6 +207,30 @@ const startTask = async () => {
   }
 }
 
+const cancelTask = async () => {
+  if (!selectedTask.value || selectedTask.value.status !== '待执行' || submitting.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确定取消任务「${selectedTask.value.title}」吗？取消后任务会保留在历史记录中。`,
+      '取消任务',
+      { confirmButtonText: '确定取消', cancelButtonText: '返回', type: 'warning' }
+    )
+    submitting.value = true
+    await request.put(`/tasks/${selectedTask.value.id}/status`, undefined, {
+      params: { status: 'cancelled' },
+      silent: true
+    })
+    updateSelectedTask({ status: '已取消' })
+    updateChart()
+    ElMessage.success('任务已取消，历史记录已保留')
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error instanceof Error ? error.message : '取消任务失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
 const submitFeedbackAndComplete = async () => {
   if (!selectedTask.value || submitting.value) return
   const feedback = feedbackText.value.trim()
@@ -298,6 +324,20 @@ onUnmounted(() => {
           </div>
         </div>
       </ElCard>
+
+
+      <ElCard class="stat-card" shadow="never">
+        <div class="stat-card-inner">
+          <div class="stat-bar stat-bar--muted"></div>
+          <div class="stat-content">
+            <div class="stat-value">{{ cancelledCount }}</div>
+            <div class="stat-label">已取消</div>
+          </div>
+          <div class="stat-icon-wrap stat-icon-wrap--muted">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+        </div>
+      </ElCard>
     </div>
 
     <!-- 图表卡片 -->
@@ -382,11 +422,14 @@ onUnmounted(() => {
             :rows="4"
             maxlength="500"
             show-word-limit
-            :disabled="selectedTask.status === '待执行'"
+            :disabled="selectedTask.status === '待执行' || selectedTask.status === '已取消'"
             placeholder="请填写实际处置措施和效果，例如：已按防治建议处理，病斑扩散得到控制。"
           />
           <div v-if="selectedTask.status === '待执行'" class="feedback-tip">
             请先开始执行任务，再填写处置效果反馈。
+          </div>
+          <div v-else-if="selectedTask.status === '已取消'" class="feedback-tip">
+            该任务已取消，仅作为历史记录保留。
           </div>
         </div>
       </div>
@@ -394,6 +437,15 @@ onUnmounted(() => {
       <template #footer>
         <div class="dialog-footer">
           <ElButton @click="dialogVisible = false">关闭</ElButton>
+          <ElButton
+            v-if="selectedTask?.status === '待执行'"
+            type="danger"
+            plain
+            :loading="submitting"
+            @click="cancelTask"
+          >
+            取消任务
+          </ElButton>
           <ElButton
             v-if="selectedTask?.status === '待执行'"
             type="primary"
@@ -428,7 +480,7 @@ onUnmounted(() => {
 /* 统计卡片行 */
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-md);
 }
@@ -460,6 +512,11 @@ onUnmounted(() => {
 
 .stat-bar--success {
   background-color: var(--color-success);
+}
+
+
+.stat-bar--muted {
+  background-color: var(--color-text-secondary);
 }
 
 .stat-content {
@@ -499,6 +556,12 @@ onUnmounted(() => {
 .stat-icon-wrap--info {
   background-color: #E6F4FF;
   color: var(--color-info);
+}
+
+
+.stat-icon-wrap--muted {
+  background-color: #F3F4F6;
+  color: var(--color-text-secondary);
 }
 
 .stat-icon-wrap--success {
@@ -693,6 +756,12 @@ onUnmounted(() => {
 }
 
 /* 响应式 */
+@media (max-width: 1200px) {
+  .stats-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
   .stats-row {
     grid-template-columns: 1fr;

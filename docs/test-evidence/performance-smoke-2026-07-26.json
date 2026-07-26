@@ -6,12 +6,12 @@
   "successes": 60,
   "failures": 0,
   "success_rate": 100.0,
-  "throughput_rps": 219.18,
+  "throughput_rps": 256.12,
   "latency_ms": {
-    "min": 12.93,
-    "median": 19.15,
-    "p95": 42.19,
-    "max": 48.76
+    "min": 10.17,
+    "median": 16.81,
+    "p95": 42.91,
+    "max": 55.89
   },
   "status_codes": {
     "200": 60

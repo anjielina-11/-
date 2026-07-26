@@ -27,6 +27,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 
@@ -67,8 +68,13 @@ public class AsyncDiagnosisService {
             BigDecimal confidence = BigDecimal.valueOf(confidenceVal);
 
             if (confidence.compareTo(UNKNOWN_THRESHOLD) < 0) {
+                String rejectionMessage = String.format(
+                        Locale.ROOT,
+                        "本地模型最高候选置信度 %.2f%%，低于 60%% 识别阈值，已转入人工审核队列。",
+                        confidenceVal * 100
+                );
                 var rejectedAdvice = new AgentAdviceResponse(
-                        "该样本暂时无法识别，已转入人工审核队列。", List.of(), Map.of(), List.of());
+                        rejectionMessage, List.of(), Map.of(), List.of());
                 var output = buildAiResult("未知病害", confidence, rejectedAdvice, List.of());
                 saveDiagnosisResult(diagnosisId, "未知病害", confidence, output);
                 agentRunService.complete(run.getId(), JSONUtil.toJsonStr(output), 0, BigDecimal.ZERO);
