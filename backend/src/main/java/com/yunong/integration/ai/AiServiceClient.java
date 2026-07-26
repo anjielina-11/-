@@ -4,7 +4,10 @@ import com.yunong.exception.BusinessException;
 import com.yunong.exception.ErrorCode;
 import com.yunong.integration.ai.dto.AgentAdviceRequest;
 import com.yunong.integration.ai.dto.AgentAdviceResponse;
+import com.yunong.integration.ai.dto.KnowledgeSyncRequest;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
@@ -50,6 +53,21 @@ public class AiServiceClient {
             return results instanceof List<?> list ? (List<Map<String, Object>>) list : List.of();
         } catch (RestClientException exception) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "RAG 检索服务调用失败: " + exception.getMessage());
+        }
+    }
+    public void replaceKnowledge(KnowledgeSyncRequest request) {
+        try {
+            restTemplate.exchange(
+                    aiServiceUrl + "/api/v1/rag/documents",
+                    HttpMethod.PUT,
+                    new HttpEntity<>(request),
+                    Map.class
+            );
+        } catch (RestClientException exception) {
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "知识库同步失败: " + exception.getMessage()
+            );
         }
     }
 }

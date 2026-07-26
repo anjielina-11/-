@@ -56,6 +56,22 @@ public class KnowledgeController {
         return R.ok(service.update(id, update));
     }
 
+    @PostMapping("/documents/{id}/archive")
+    @PreAuthorize("hasAnyRole('TECHNICIAN', 'ADMIN')")
+    @AuditLog(action = "归档知识文档")
+    @Operation(summary = "归档文档并同步 RAG")
+    public R<KnowledgeDocument> archive(@PathVariable String id) {
+        return R.ok(service.archive(id));
+    }
+
+    @PostMapping("/documents/sync")
+    @PreAuthorize("hasRole('ADMIN')")
+    @AuditLog(action = "同步知识库")
+    @Operation(summary = "全量同步已发布文档到 RAG")
+    public R<Integer> syncPublished() {
+        return R.ok(service.syncPublished());
+    }
+
     @GetMapping("/search")
     @Operation(summary = "知识库搜索（关键词 + 向量语义）")
     public R<PageResult<KnowledgeDocument>> search(
