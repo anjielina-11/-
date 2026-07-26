@@ -3,6 +3,7 @@ package com.yunong.module.model.controller;
 import com.yunong.common.AuditLog;
 import com.yunong.common.PageResult;
 import com.yunong.common.R;
+import com.yunong.integration.ai.dto.ModelRuntimeResponse;
 import com.yunong.module.model.entity.ModelVersion;
 import com.yunong.module.model.service.ModelVersionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,6 +38,12 @@ public class ModelVersionController {
             @RequestParam(required = false) String modelType,
             @RequestParam(required = false) String status) {
         return R.ok(service.list(page, size, modelType, status));
+    }
+
+    @GetMapping("/runtime")
+    @Operation(summary = "查询当前 AI Runtime 模型")
+    public R<ModelRuntimeResponse> getRuntime() {
+        return R.ok(service.getRuntime());
     }
 
     @GetMapping("/{id}")

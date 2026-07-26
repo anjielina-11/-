@@ -23,6 +23,8 @@ public class ModelVersion {
     private BigDecimal recallVal;
     private BigDecimal f1Score;
     private String modelPath;
+    private String classMappingPath;
+    private Integer numClasses;
     private String configJson;
     private String status;
     private LocalDateTime deployedAt;

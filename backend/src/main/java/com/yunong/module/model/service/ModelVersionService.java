@@ -5,10 +5,14 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yunong.common.PageResult;
 import com.yunong.exception.BusinessException;
 import com.yunong.exception.ErrorCode;
+import com.yunong.integration.ai.AiServiceClient;
+import com.yunong.integration.ai.dto.ModelActivateRequest;
+import com.yunong.integration.ai.dto.ModelRuntimeResponse;
 import com.yunong.module.model.entity.ModelVersion;
 import com.yunong.module.model.mapper.ModelVersionMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -16,12 +20,15 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class ModelVersionService {
 
-    private final ModelVersionMapper mapper;
+    private static final double DEFAULT_CONFIDENCE_THRESHOLD = 0.6;
 
-    public ModelVersion create(ModelVersion mv) {
-        if (mv.getStatus() == null) mv.setStatus("draft");
-        mapper.insert(mv);
-        return mv;
+    private final ModelVersionMapper mapper;
+    private final AiServiceClient aiServiceClient;
+
+    public ModelVersion create(ModelVersion modelVersion) {
+        modelVersion.setStatus("training");
+        mapper.insert(modelVersion);
+        return modelVersion;
     }
 
     public PageResult<ModelVersion> list(int page, int size, String modelType, String status) {
@@ -34,46 +41,70 @@ public class ModelVersionService {
     }
 
     public ModelVersion getById(String id) {
-        var mv = mapper.selectById(id);
-        if (mv == null) throw new BusinessException(ErrorCode.MODEL_NOT_FOUND);
-        return mv;
+        var modelVersion = mapper.selectById(id);
+        if (modelVersion == null) throw new BusinessException(ErrorCode.MODEL_NOT_FOUND);
+        return modelVersion;
     }
 
     public ModelVersion update(String id, ModelVersion update) {
-        var mv = getById(id);
-        if (update.getModelName() != null) mv.setModelName(update.getModelName());
-        if (update.getModelType() != null) mv.setModelType(update.getModelType());
-        if (update.getVersion() != null) mv.setVersion(update.getVersion());
-        if (update.getAccuracy() != null) mv.setAccuracy(update.getAccuracy());
-        if (update.getPrecisionVal() != null) mv.setPrecisionVal(update.getPrecisionVal());
-        if (update.getRecallVal() != null) mv.setRecallVal(update.getRecallVal());
-        if (update.getF1Score() != null) mv.setF1Score(update.getF1Score());
-        if (update.getModelPath() != null) mv.setModelPath(update.getModelPath());
-        if (update.getConfigJson() != null) mv.setConfigJson(update.getConfigJson());
-        if (update.getDescription() != null) mv.setDescription(update.getDescription());
-        mapper.updateById(mv);
-        return mv;
+        var modelVersion = getById(id);
+        if (update.getModelName() != null) modelVersion.setModelName(update.getModelName());
+        if (update.getModelType() != null) modelVersion.setModelType(update.getModelType());
+        if (update.getVersion() != null) modelVersion.setVersion(update.getVersion());
+        if (update.getAccuracy() != null) modelVersion.setAccuracy(update.getAccuracy());
+        if (update.getPrecisionVal() != null) modelVersion.setPrecisionVal(update.getPrecisionVal());
+        if (update.getRecallVal() != null) modelVersion.setRecallVal(update.getRecallVal());
+        if (update.getF1Score() != null) modelVersion.setF1Score(update.getF1Score());
+        if (update.getModelPath() != null) modelVersion.setModelPath(update.getModelPath());
+        if (update.getClassMappingPath() != null) modelVersion.setClassMappingPath(update.getClassMappingPath());
+        if (update.getNumClasses() != null) modelVersion.setNumClasses(update.getNumClasses());
+        if (update.getConfigJson() != null) modelVersion.setConfigJson(update.getConfigJson());
+        if (update.getDescription() != null) modelVersion.setDescription(update.getDescription());
+        mapper.updateById(modelVersion);
+        return modelVersion;
     }
 
+    @Transactional
     public ModelVersion deploy(String id) {
-        var mv = getById(id);
-        mv.setStatus("active");
-        mv.setDeployedAt(LocalDateTime.now());
-        mapper.updateById(mv);
-        // 将其他同模型名版本设为 inactive
-        var others = mapper.selectList(new LambdaQueryWrapper<ModelVersion>()
-                .eq(ModelVersion::getModelName, mv.getModelName())
+        var candidate = getById(id);
+        var runtime = aiServiceClient.activateModel(toActivateRequest(candidate));
+        if (!runtime.loaded()) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "AI Runtime 未确认模型加载成功");
+        }
+
+        var previousVersions = mapper.selectList(new LambdaQueryWrapper<ModelVersion>()
+                .eq(ModelVersion::getModelName, candidate.getModelName())
                 .ne(ModelVersion::getId, id)
-                .eq(ModelVersion::getStatus, "active"));
-        others.forEach(o -> {
-            o.setStatus("inactive");
-            mapper.updateById(o);
+                .eq(ModelVersion::getStatus, "deployed"));
+        previousVersions.forEach(previous -> {
+            previous.setStatus("deprecated");
+            mapper.updateById(previous);
         });
-        return mv;
+
+        candidate.setStatus("deployed");
+        candidate.setDeployedAt(LocalDateTime.now());
+        mapper.updateById(candidate);
+        return candidate;
+    }
+
+    public ModelRuntimeResponse getRuntime() {
+        return aiServiceClient.getModelRuntime();
     }
 
     public void delete(String id) {
         if (mapper.selectById(id) == null) throw new BusinessException(ErrorCode.MODEL_NOT_FOUND);
         mapper.deleteById(id);
+    }
+
+    private ModelActivateRequest toActivateRequest(ModelVersion modelVersion) {
+        return new ModelActivateRequest(
+                modelVersion.getId(),
+                modelVersion.getModelName(),
+                modelVersion.getVersion(),
+                modelVersion.getModelPath(),
+                modelVersion.getClassMappingPath(),
+                modelVersion.getNumClasses(),
+                DEFAULT_CONFIDENCE_THRESHOLD
+        );
     }
 }

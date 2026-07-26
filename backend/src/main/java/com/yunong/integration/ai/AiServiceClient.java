@@ -5,6 +5,8 @@ import com.yunong.exception.ErrorCode;
 import com.yunong.integration.ai.dto.AgentAdviceRequest;
 import com.yunong.integration.ai.dto.AgentAdviceResponse;
 import com.yunong.integration.ai.dto.KnowledgeSyncRequest;
+import com.yunong.integration.ai.dto.ModelActivateRequest;
+import com.yunong.integration.ai.dto.ModelRuntimeResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -55,6 +57,43 @@ public class AiServiceClient {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "RAG 检索服务调用失败: " + exception.getMessage());
         }
     }
+    public ModelRuntimeResponse activateModel(ModelActivateRequest request) {
+        try {
+            var response = restTemplate.postForEntity(
+                    aiServiceUrl + "/api/v1/models/activate",
+                    request,
+                    ModelRuntimeResponse.class
+            );
+            if (response.getBody() == null) {
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "AI 模型激活响应为空");
+            }
+            return response.getBody();
+        } catch (RestClientException exception) {
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "AI 模型激活失败: " + exception.getMessage()
+            );
+        }
+    }
+
+    public ModelRuntimeResponse getModelRuntime() {
+        try {
+            var response = restTemplate.getForEntity(
+                    aiServiceUrl + "/api/v1/models/runtime",
+                    ModelRuntimeResponse.class
+            );
+            if (response.getBody() == null) {
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "AI Runtime 响应为空");
+            }
+            return response.getBody();
+        } catch (RestClientException exception) {
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "AI Runtime 查询失败: " + exception.getMessage()
+            );
+        }
+    }
+
     public void replaceKnowledge(KnowledgeSyncRequest request) {
         try {
             restTemplate.exchange(
