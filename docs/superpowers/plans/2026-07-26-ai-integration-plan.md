@@ -531,7 +531,7 @@ Expected: FAIL，操作按钮/API/字段不存在。
 Run: `npm.cmd --prefix frontend test -- --run AdminKnowledge.test.ts AdminModels.test.ts`
 Expected: PASS。
 
-Run: `npm.cmd --prefix frontend exec vue-tsc -- --noEmit`
+Run: `Push-Location frontend; npm.cmd exec -- vue-tsc --noEmit -p tsconfig.app.json; Pop-Location`
 Expected: exit 0。
 
 Run: `npm.cmd --prefix frontend run build`
@@ -586,7 +586,7 @@ Expected: PASS。
 Run: `npm.cmd --prefix frontend test -- --run`
 Expected: PASS。
 
-Run: `npm.cmd --prefix frontend exec vue-tsc -- --noEmit`
+Run: `Push-Location frontend; npm.cmd exec -- vue-tsc --noEmit -p tsconfig.app.json; Pop-Location`
 Expected: exit 0。
 
 Run: `npm.cmd --prefix frontend run build`
@@ -627,4 +627,5 @@ git commit -m "test: verify complete ai diagnosis workflow"
 - Placeholder scan: 所有步骤均包含具体文件、接口、测试、命令和期望结果。
 - Type consistency: `AdviceRequest/AdviceResponse`、`KnowledgeSyncRequest`、`ModelActivateRequest/RuntimeInfo` 在 AI 与 Backend 任务中命名一致；状态枚举在三端一致。
 - Dependency order: Task 1→2，Task 3→4，Task 5→6，Task 7→8→9；每组均可独立 RED/GREEN 和提交。
+
 
