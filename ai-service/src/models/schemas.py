@@ -1,5 +1,7 @@
+from datetime import date as Date
+from typing import Any, Dict, List, Literal, Optional
+
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
 
 
 class WeatherInfo(BaseModel):
@@ -23,7 +25,7 @@ class ReferenceSource(BaseModel):
 
 class DiseaseAdvice(BaseModel):
     advice: str = Field(..., description="生成的综合防治建议（Markdown格式）")
-    references: List[ReferenceSource] = Field([], description="参考资料列表")
+    references: List[ReferenceSource] = Field(default_factory=list, description="参考资料列表")
     weather_info: str = Field("", description="天气信息")
 
 
@@ -44,21 +46,51 @@ class DiseaseAdviceResponse(BaseModel):
     disease_name: str = Field(..., description="识别到的病害名称")
     confidence: float = Field(..., ge=0, le=1, description="置信度（0-1）")
     advice: str = Field(..., description="生成的综合防治建议")
-    references: List[ReferenceSource] = Field([], description="参考资料列表")
+    references: List[ReferenceSource] = Field(default_factory=list, description="参考资料列表")
     weather_info: str = Field("", description="天气信息")
+
+
+class CropContext(BaseModel):
+    name: str = Field("未知作物", description="作物名称")
+    variety: Optional[str] = Field(None, description="品种")
+    planting_date: Optional[Date] = Field(None, description="种植日期")
+    growth_stage: Optional[str] = Field(None, description="生育期代码")
+
+
+class FieldContext(BaseModel):
+    name: str = Field("未知地块", description="地块名称")
+    farm_name: str = Field("未知农场", description="农场名称")
+
+
+class WeatherForecastItem(BaseModel):
+    date: Date = Field(..., description="预报日期")
+    weather: str = Field("未知", description="天气现象")
+    temperature: Optional[float] = Field(None, description="温度（摄氏度）")
+    humidity: Optional[float] = Field(None, description="湿度（%）")
+    rainfall: Optional[float] = Field(None, description="降雨量（mm）")
+    wind_speed: Optional[float] = Field(None, description="风速（m/s）")
+
+
+class AgentTrace(BaseModel):
+    agent: str
+    status: Literal["completed", "no-data"]
+    summary: str
 
 
 class AdviceRequest(BaseModel):
     disease_name: str = Field(..., description="病害名称")
     confidence: float = Field(..., ge=0, le=1, description="识别置信度")
-    crop_info: str = Field("未知作物", description="作物信息")
-    weather_info: str = Field("未知天气", description="天气信息")
+    crop: CropContext = Field(default_factory=CropContext)
+    field: FieldContext = Field(default_factory=FieldContext)
+    weather_forecast: List[WeatherForecastItem] = Field(default_factory=list)
     citations: List[Dict[str, Any]] = Field(default_factory=list, description="RAG 引用")
 
 
 class AdviceResponse(BaseModel):
     advice: str
     references: List[Dict[str, Any]] = Field(default_factory=list)
+    context_summary: Dict[str, Any] = Field(default_factory=dict)
+    agent_trace: List[AgentTrace] = Field(default_factory=list)
     weather_info: str = "未知天气"
 
 

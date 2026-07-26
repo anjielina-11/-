@@ -1,222 +1,266 @@
 import json
+from datetime import date
+from typing import Dict, List, Optional
+
 import requests
-from typing import Optional, Dict, List
+
 from .rag_service import RAGService
-from .weather_service import WeatherService
 from ..core.config import settings
+from ..models.schemas import (
+    AdviceRequest,
+    AdviceResponse,
+    AgentTrace,
+    CropContext,
+    FieldContext,
+    WeatherForecastItem,
+)
 
 
 class AgentService:
+    GROWTH_STAGE_LABELS = {
+        "sowing": "播种期",
+        "seedling": "苗期",
+        "tillering": "分蘖期",
+        "flowering": "开花期",
+        "fruiting": "结果期",
+        "maturity": "成熟期",
+    }
+
     @classmethod
     def generate_advice(
         cls,
-        disease_name: str,
+        request: Optional[AdviceRequest] = None,
+        *,
+        disease_name: Optional[str] = None,
         crop_info: str = "未知作物",
         weather_info: str = "未知天气",
         weather_data: Optional[Dict] = None,
         citations: Optional[List[Dict]] = None,
-    ) -> Dict:
-        reference_docs = citations if citations is not None else cls._retrieve_reference(disease_name)
+    ) -> AdviceResponse:
+        structured_request = request is not None
+        if request is None:
+            forecast = []
+            if weather_data:
+                forecast = [
+                    WeatherForecastItem(
+                        date=date.today(),
+                        weather=str(weather_data.get("weather", "未知")),
+                        temperature=weather_data.get("temperature"),
+                        humidity=weather_data.get("humidity"),
+                        rainfall=weather_data.get("rain", weather_data.get("rainfall")),
+                        wind_speed=weather_data.get("wind_speed"),
+                    )
+                ]
+            request = AdviceRequest(
+                disease_name=disease_name or "未知病害",
+                confidence=0.0,
+                crop=CropContext(name=crop_info),
+                field=FieldContext(),
+                weather_forecast=forecast,
+                citations=citations or [],
+            )
 
-        if weather_data:
-            weather_info = cls._format_weather_info(weather_data)
+        reference_docs = list(request.citations)
+        if not structured_request and citations is None:
+            reference_docs = cls._retrieve_reference(request.disease_name)
 
-        prompt = cls._build_prompt(
-            disease_name=disease_name,
-            crop_info=crop_info,
-            weather_info=weather_info,
-            reference_docs=reference_docs
+        weather_status, weather_summary, weather_risk = cls._analyze_weather(
+            request.weather_forecast,
+            legacy_weather_info=weather_info if not structured_request else None,
         )
+        growth_status, growth_summary = cls._analyze_growth_stage(request)
+        rag_status, rag_summary = cls._summarize_rag(reference_docs)
+        prompt = cls._build_prompt(request, weather_summary, weather_risk, growth_summary, reference_docs)
+        fallback = cls._generate_fallback_response(
+            request,
+            weather_summary,
+            weather_risk,
+            growth_summary,
+            reference_docs,
+        )
+        advice = cls._call_llm(prompt, fallback)
 
-        llm_response = cls._call_llm(prompt, reference_docs)
-
-        return {
-            "advice": llm_response,
-            "references": reference_docs,
-            "weather_info": weather_info
+        context_summary = {
+            "crop_name": request.crop.name,
+            "variety": request.crop.variety,
+            "growth_stage": request.crop.growth_stage,
+            "growth_stage_label": cls.GROWTH_STAGE_LABELS.get(request.crop.growth_stage or "", "未知生育期"),
+            "field_name": request.field.name,
+            "farm_name": request.field.farm_name,
+            "weather_days": len(request.weather_forecast),
+            "disease_name": request.disease_name,
+            "confidence": request.confidence,
         }
+        trace = [
+            AgentTrace(agent="weather-risk", status=weather_status, summary=weather_risk),
+            AgentTrace(agent="growth-stage", status=growth_status, summary=growth_summary),
+            AgentTrace(agent="rag-evidence", status=rag_status, summary=rag_summary),
+            AgentTrace(agent="treatment", status="completed", summary="已综合病害、天气、生育期和知识证据生成建议"),
+        ]
+        return AdviceResponse(
+            advice=advice,
+            references=reference_docs,
+            context_summary=context_summary,
+            agent_trace=trace,
+            weather_info=weather_summary,
+        )
 
     @classmethod
-    def _format_weather_info(cls, weather_data: Dict) -> str:
-        return (
-            f"城市: {weather_data.get('city', '未知')}\n"
-            f"天气: {weather_data.get('weather', '未知')}\n"
-            f"温度: {weather_data.get('temperature', 0)}°C\n"
-            f"湿度: {weather_data.get('humidity', 0)}%\n"
-            f"风速: {weather_data.get('wind_speed', 0)}m/s\n"
-            f"降雨量: {weather_data.get('rain', 0)}mm"
-        )
+    def _analyze_weather(
+        cls,
+        forecast: List[WeatherForecastItem],
+        legacy_weather_info: Optional[str] = None,
+    ) -> tuple[str, str, str]:
+        if not forecast:
+            if legacy_weather_info and legacy_weather_info != "未知天气":
+                return "completed", legacy_weather_info, f"天气信息：{legacy_weather_info}"
+            return "no-data", "暂无未来七天天气数据", "未取得天气数据，施药前需再次确认降雨和风力"
+
+        lines = []
+        risks = []
+        for item in forecast:
+            details = [item.weather]
+            if item.temperature is not None:
+                details.append(f"{item.temperature:g}°C")
+            if item.humidity is not None:
+                details.append(f"湿度{item.humidity:g}%")
+                if item.humidity >= 80:
+                    risks.append(f"{item.date.isoformat()} 高湿{item.humidity:g}%可能加快病害扩散")
+            if item.rainfall is not None:
+                details.append(f"降雨{item.rainfall:g}mm")
+                if item.rainfall > 0:
+                    risks.append(f"{item.date.isoformat()} 有降雨，避免雨前或雨中施药")
+            if item.temperature is not None and item.temperature >= 35:
+                risks.append(f"{item.date.isoformat()} 高温，避免正午施药")
+            lines.append(f"{item.date.isoformat()} {'，'.join(details)}")
+        risk_summary = "；".join(dict.fromkeys(risks)) if risks else "未来天气未发现明显高湿、降雨或高温施药风险"
+        return "completed", "；".join(lines), risk_summary
+
+    @classmethod
+    def _analyze_growth_stage(cls, request: AdviceRequest) -> tuple[str, str]:
+        code = request.crop.growth_stage
+        if not code:
+            return "no-data", "未登记生育期，需结合现场长势复核"
+        label = cls.GROWTH_STAGE_LABELS.get(code, code)
+        planting = request.crop.planting_date.isoformat() if request.crop.planting_date else "未登记种植日期"
+        return "completed", f"当前为{label}，种植日期：{planting}"
+
+    @classmethod
+    def _summarize_rag(cls, reference_docs: List[Dict]) -> tuple[str, str]:
+        if not reference_docs:
+            return "no-data", "未检索到知识库证据，建议由农技人员复核"
+        sources = [str(doc.get("source") or doc.get("title") or f"文档{i + 1}") for i, doc in enumerate(reference_docs[:3])]
+        return "completed", f"已引用{len(reference_docs)}条知识证据：{'、'.join(sources)}"
 
     @classmethod
     def _retrieve_reference(cls, disease_name: str) -> List[Dict]:
         try:
-            queries = [
-                f"{disease_name} 防治方法",
-                f"{disease_name} 症状识别",
-                f"{disease_name} 农药选择"
-            ]
-            
             all_results = []
-            for query in queries:
-                results = RAGService.retrieve(query, top_k=2)
-                all_results.extend(results)
-            
-            all_results.sort(key=lambda x: x['score'])
-            
-            seen = set()
+            for query in (f"{disease_name} 防治方法", f"{disease_name} 症状识别", f"{disease_name} 农药选择"):
+                all_results.extend(RAGService.retrieve(query, top_k=2))
+            all_results.sort(key=lambda item: item.get("score", 1.0))
             unique_results = []
+            seen = set()
             for doc in all_results:
-                content_hash = hash(doc['content'][:100])
-                if content_hash not in seen:
-                    seen.add(content_hash)
-                    unique_results.append(doc)
-                    if len(unique_results) >= 3:
-                        break
-            
+                content_hash = hash(str(doc.get("content", ""))[:100])
+                if content_hash in seen:
+                    continue
+                seen.add(content_hash)
+                unique_results.append(doc)
+                if len(unique_results) >= 3:
+                    break
             return unique_results
-        except ValueError:
+        except (ValueError, RuntimeError):
             return []
 
     @classmethod
     def _build_prompt(
         cls,
-        disease_name: str,
-        crop_info: str,
-        weather_info: str,
-        reference_docs: List[Dict]
+        request: AdviceRequest,
+        weather_summary: str,
+        weather_risk: str,
+        growth_summary: str,
+        reference_docs: List[Dict],
     ) -> str:
-        reference_text = ""
-        reference_sources = []
-        
-        if reference_docs:
-            reference_text = "\n\n【参考资料】\n"
-            for i, doc in enumerate(reference_docs):
-                source = doc.get('source', f"文档{i+1}")
-                reference_sources.append(source)
-                reference_text += f"资料{i+1}（来源: {source}，相似度: {doc.get('score', 0):.4f}）:\n"
-                reference_text += f"   {doc.get('content', '')[:500]}\n\n"
+        references = "\n".join(
+            f"- {doc.get('source', doc.get('title', f'文档{i + 1}'))}: {str(doc.get('content', ''))[:500]}"
+            for i, doc in enumerate(reference_docs[:3])
+        ) or "- 无可用知识库证据，必须提示农技人员复核"
+        return f"""你是一位农业技术专家。请只依据给定上下文生成可执行的 Markdown 防治建议。
 
-        prompt = f"""你是一位资深的农业技术专家，精通各种农作物病害的诊断与防治。
+作物：{request.crop.name}；品种：{request.crop.variety or '未登记'}
+地块：{request.field.name}；农场：{request.field.farm_name}
+病害：{request.disease_name}；置信度：{request.confidence:.2%}
+生育期：{growth_summary}
+未来天气：{weather_summary}
+天气风险：{weather_risk}
+知识证据：
+{references}
 
-请根据以下信息，为用户提供专业、详细的综合防治建议：
-
-【作物信息】
-{crop_info}
-
-【诊断结果】
-病害名称：{disease_name}
-
-【天气情况】
-{weather_info}
-
-{reference_text}
-
-请按照以下结构输出防治建议（使用Markdown格式）：
-
-## 1. 病害分析
-简要说明该病害的特点和对当前作物的影响
-
-## 2. 农业防治
-从栽培管理角度给出预防和控制措施
-
-## 3. 物理防治
-适合当前天气条件的物理防治方法
-
-## 4. 化学防治
-推荐合适的农药及使用方法（如需要）
-
-## 5. 注意事项
-针对当前天气和作物情况的特别提醒
-
----
-
-### 参考来源
-{', '.join(reference_sources) if reference_sources else '暂无'}
-
-注意：
-- 建议要结合当前天气情况给出（如高湿天气注意通风降湿，雨天避免喷药等）
-- 如果有参考资料，请优先参考资料内容，并在建议中体现
-- 输出语言要通俗易懂，便于农户理解和操作
-- 避免使用过于专业的术语，或在使用时给出解释
-- 化学防治部分请注明推荐农药名称和安全间隔期"""
-
-        return prompt
+输出必须包含病害分析、天气与生育期风险、农业防治、用药建议、处置时机、复核事项和参考来源。"""
 
     @classmethod
-    def _call_llm(cls, prompt: str, reference_docs: Optional[List[Dict]] = None) -> str:
-        api_key = settings.LLM_API_KEY
-        api_base = settings.LLM_API_BASE
-        model_name = settings.LLM_MODEL_NAME
-
-        if not api_key or not api_base:
-            return cls._generate_fallback_response(reference_docs)
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-        }
-
+    def _call_llm(cls, prompt: str, fallback: str) -> str:
+        if not settings.LLM_API_KEY or not settings.LLM_API_BASE:
+            return fallback
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {settings.LLM_API_KEY}"}
         payload = {
-            "model": model_name,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "temperature": 0.7,
-            "max_tokens": 2000
+            "model": settings.LLM_MODEL_NAME,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3,
+            "max_tokens": 2000,
         }
-
         try:
             response = requests.post(
-                f"{api_base}/chat/completions",
+                f"{settings.LLM_API_BASE}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=60
+                timeout=60,
             )
             response.raise_for_status()
-            result = response.json()
-            return result["choices"][0]["message"]["content"].strip()
-        except Exception as e:
-            return cls._generate_fallback_response(reference_docs)
+            return response.json()["choices"][0]["message"]["content"].strip()
+        except (requests.RequestException, KeyError, TypeError, json.JSONDecodeError):
+            return fallback
 
     @classmethod
-    def _generate_fallback_response(cls, reference_docs: Optional[List[Dict]] = None) -> str:
-        references = reference_docs or []
-        reference_section = "暂无可用知识库引用，请由农技人员复核。"
-        if references:
+    def _generate_fallback_response(
+        cls,
+        request: AdviceRequest,
+        weather_summary: str,
+        weather_risk: str,
+        growth_summary: str,
+        reference_docs: List[Dict],
+    ) -> str:
+        if reference_docs:
             reference_section = "\n\n".join(
-                f"- 来源：{doc.get('source', f'文档{i + 1}')}\n  {doc.get('content', '').strip()[:500]}"
-                for i, doc in enumerate(references[:3])
+                f"- 来源：{doc.get('source', doc.get('title', f'文档{i + 1}'))}\n  {str(doc.get('content', '')).strip()[:500]}"
+                for i, doc in enumerate(reference_docs[:3])
             )
+        else:
+            reference_section = "暂无可用知识库引用，请由农技人员复核。"
 
-        return f"""## 1. 病害分析
-该病害对作物生长有一定影响，需要及时采取防治措施。
+        return f"""## 1. 病害与地块信息
+- 作物：{request.crop.name}（品种：{request.crop.variety or '未登记'}）
+- 地块：{request.field.name} / {request.field.farm_name}
+- 识别结果：{request.disease_name}，置信度 {request.confidence:.1%}
 
-## 2. 农业防治
-- 及时清除病株和病叶，减少病菌传播源
-- 加强田间通风透光，降低湿度
-- 合理施肥，增强植株抗病能力
-- 实行轮作制度，避免连作障碍
+## 2. 生育期分析
+{growth_summary}。当前处置必须避免影响该阶段正常生长。
 
-## 3. 物理防治
-- 人工摘除病叶、病果，集中深埋或烧毁
-- 利用防虫网阻止害虫传播病菌
-- 采用高温闷棚等措施杀灭病菌
+## 3. 天气风险
+- 未来天气：{weather_summary}
+- 风险判断：{weather_risk}
 
-## 4. 化学防治
-根据病害类型选择合适的农药进行防治，严格按照农药使用说明操作，注意安全间隔期。建议选择高效低毒农药。
+## 4. 综合防治建议
+- 先隔离并标记疑似病株，清理严重病叶，减少传播源。
+- 改善田间通风与排水，根据实际病斑范围分区处置。
+- 选择登记用于“{request.crop.name}—{request.disease_name}”的药剂，严格按标签剂量和安全间隔期使用。
+- 有降雨或大风时暂停喷药；处置后 2—3 天复查病斑扩展情况并记录效果。
 
-## 5. 注意事项
-- 喷药时要均匀周到，叶片正反面都要喷到
-- 注意喷药时间，避免高温时段和雨天喷药
-- 遵守农药安全间隔期规定
-- 注意药剂交替使用，避免病菌产生抗药性
+## 5. 农技员复核事项
+核对病害类别、作物生育期、天气窗口和药剂登记范围；知识证据不足时不得仅依据自动建议施药。
 
 ---
 
 ### 参考来源
-当前环境未配置大语言模型 API，以下内容直接引用 RAG 检索结果，供农技人员结合现场情况审核：
-
 {reference_section}"""

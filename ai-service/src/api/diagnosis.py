@@ -16,17 +16,7 @@ router = APIRouter(prefix="/api/v1/diagnosis", tags=["diagnosis"])
 
 @router.post("/advice", response_model=AdviceResponse, summary="基于诊断结果生成防治建议")
 async def generate_advice(request: AdviceRequest):
-    result = AgentService.generate_advice(
-        disease_name=request.disease_name,
-        crop_info=request.crop_info,
-        weather_info=request.weather_info,
-        citations=request.citations,
-    )
-    return AdviceResponse(
-        advice=result["advice"],
-        references=result.get("references", request.citations),
-        weather_info=result.get("weather_info", request.weather_info),
-    )
+    return AgentService.generate_advice(request)
 
 
 @router.post(
@@ -74,9 +64,9 @@ async def diagnose_image(
         return DiseaseAdviceResponse(
             disease_name=disease_name,
             confidence=confidence,
-            advice=advice_result["advice"],
-            references=advice_result["references"],
-            weather_info=advice_result["weather_info"]
+            advice=advice_result.advice,
+            references=advice_result.references,
+            weather_info=advice_result.weather_info
         )
     
     except UnknownDiseaseError:
