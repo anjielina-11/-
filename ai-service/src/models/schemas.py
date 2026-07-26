@@ -159,3 +159,23 @@ class DiseaseListResponse(BaseModel):
 class WeatherResponse(BaseModel):
     success: bool = Field(..., description="是否成功")
     weather: WeatherInfo = Field(..., description="天气信息")
+
+class ModelActivateRequest(BaseModel):
+    model_id: Optional[str] = None
+    model_name: str
+    version: str
+    model_path: str
+    class_to_idx_path: str
+    num_classes: int = Field(..., gt=0)
+    confidence_threshold: float = Field(0.6, ge=0, le=1)
+
+
+class RuntimeInfo(BaseModel):
+    model_id: Optional[str] = None
+    model_name: str
+    version: str
+    model_path: str
+    class_to_idx_path: str
+    num_classes: int
+    confidence_threshold: float
+    loaded: bool

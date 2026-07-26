@@ -17,7 +17,7 @@ class DiseaseClassifier:
     def __init__(self, model_path=None, class_to_idx_path=None, num_classes=None, threshold=None, device=None):
         self.model_path = resolve_service_path(model_path or settings.MODEL_PATH)
         self.class_to_idx_path = resolve_service_path(class_to_idx_path or settings.CLASS_TO_IDX_PATH)
-        self.threshold = threshold if threshold else settings.CONFIDENCE_THRESHOLD
+        self.threshold = threshold if threshold is not None else settings.CONFIDENCE_THRESHOLD
         self.device = device if device else ("cuda" if torch.cuda.is_available() else "cpu")
         
         self._load_class_mapping()

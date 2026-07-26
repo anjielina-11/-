@@ -1,21 +1,42 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from .api.diagnosis import router as diagnosis_router
 from .api.weather import router as weather_router
 from .api.rag import router as rag_router
+from .api.models import router as models_router
 from .core.config import settings
-from .services.inference_service import DiseaseClassifier
 from .services.rag_service import RAGService
-from .models.schemas import HealthResponse
+from .services.model_runtime_service import ModelRuntimeService
+from .models.schemas import HealthResponse, ModelActivateRequest
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MODEL_REQUEST = ModelActivateRequest(
+    model_name="default-disease-classifier",
+    version="v1.0.0",
+    model_path=str(settings.MODEL_PATH),
+    class_to_idx_path=str(settings.CLASS_TO_IDX_PATH),
+    num_classes=settings.NUM_CLASSES,
+    confidence_threshold=settings.CONFIDENCE_THRESHOLD,
+)
+MODEL_RUNTIME = ModelRuntimeService(
+    allowed_roots=settings.model_allowed_roots_list,
+    initial_request=DEFAULT_MODEL_REQUEST,
+)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    try:
+        if not _app.state.model_runtime.get_runtime().loaded:
+            _app.state.model_runtime.activate(DEFAULT_MODEL_REQUEST)
+            logger.info("Loaded default disease classifier")
+    except Exception:
+        logger.exception("Failed to load default disease classifier")
+
     try:
         chunks_count = RAGService.ensure_initialized(settings.RAG_KNOWLEDGE_DOCS_PATH)
         if chunks_count:
@@ -65,6 +86,7 @@ app = FastAPI(
         }
     ]
 )
+app.state.model_runtime = MODEL_RUNTIME
 
 app.add_middleware(
     CORSMiddleware,
@@ -77,6 +99,7 @@ app.add_middleware(
 app.include_router(diagnosis_router)
 app.include_router(weather_router)
 app.include_router(rag_router)
+app.include_router(models_router)
 
 
 
@@ -87,13 +110,12 @@ app.include_router(rag_router)
     summary="健康检查",
     description="检查服务运行状态，包括模型加载和向量数据库状态。"
 )
-async def health_check():
+async def health_check(request: Request):
     model_loaded = False
     vector_db_ready = False
     
     try:
-        classifier = DiseaseClassifier()
-        model_loaded = True
+        model_loaded = request.app.state.model_runtime.get_runtime().loaded
     except Exception:
         model_loaded = False
     

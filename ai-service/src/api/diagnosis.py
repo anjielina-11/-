@@ -1,17 +1,24 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Query
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Request
 from typing import Optional, Union
 from ..models.schemas import (
     DiseaseAdviceResponse, PendingReviewResponse, ErrorResponse,
     DiseaseClassification, DiagnosisResult, DiseaseListResponse,
     AdviceRequest, AdviceResponse
 )
-from ..services.inference_service import DiseaseClassifier, UnknownDiseaseError
+from ..services.inference_service import UnknownDiseaseError
 from ..services.agent_service import AgentService
 from ..services.diagnosis_service import DiagnosisService
 from ..services.weather_service import WeatherService
 from ..core.config import settings
 
 router = APIRouter(prefix="/api/v1/diagnosis", tags=["diagnosis"])
+
+
+def _get_classifier(request: Request):
+    try:
+        return request.app.state.model_runtime.get_classifier()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post("/advice", response_model=AdviceResponse, summary="基于诊断结果生成防治建议")
@@ -30,6 +37,7 @@ async def generate_advice(request: AdviceRequest):
     description="上传作物叶片图片进行病害诊断，返回病害名称、置信度和综合防治建议。"
 )
 async def diagnose_image(
+    request: Request,
     image: UploadFile = File(..., description="作物叶片图片（支持jpg、jpeg、png格式）"),
     crop_info: str = Query("未知作物", description="作物信息（如：番茄、黄瓜、土豆等）"),
     weather_info: str = Query("未知天气", description="天气信息（如：晴朗、25°C、湿度60%）"),
@@ -49,7 +57,7 @@ async def diagnose_image(
     elif lat is not None and lon is not None:
         weather_data = WeatherService.get_weather_by_coords(lat, lon)
     
-    classifier = DiseaseClassifier()
+    classifier = _get_classifier(request)
     
     try:
         disease_name, confidence = classifier.predict_from_bytes(image_bytes)
@@ -86,6 +94,7 @@ async def diagnose_image(
     description="仅进行病害识别，不生成详细防治建议，返回速度更快。"
 )
 async def diagnose_simple(
+    request: Request,
     image: UploadFile = File(..., description="作物叶片图片"),
     crop_info: str = Query("未知作物", description="作物信息")
 ):
@@ -95,7 +104,8 @@ async def diagnose_simple(
     if not is_valid:
         raise HTTPException(status_code=400, detail=error_msg)
     
-    results = DiagnosisService.analyze_image(image_bytes, image.filename)
+    classifier = _get_classifier(request)
+    results = DiagnosisService.analyze_image(image_bytes, image.filename, classifier)
     
     if results:
         result = results[0]
@@ -119,6 +129,7 @@ async def diagnose_simple(
     description="进行病害识别，获取天气信息，生成防治建议，返回完整的诊断结果对象。"
 )
 async def diagnose_full(
+    request: Request,
     image: UploadFile = File(..., description="作物叶片图片"),
     crop_info: str = Query("未知作物", description="作物信息"),
     city: Optional[str] = Query(None, description="城市名称"),
@@ -137,7 +148,7 @@ async def diagnose_full(
     elif lat is not None and lon is not None:
         weather_data = WeatherService.get_weather_by_coords(lat, lon)
     
-    classifier = DiseaseClassifier()
+    classifier = _get_classifier(request)
     
     try:
         disease_name, confidence = classifier.predict_from_bytes(image_bytes)
@@ -180,10 +191,9 @@ async def diagnose_full(
     summary="获取支持的病害列表",
     description="获取模型支持识别的所有病害名称列表。"
 )
-async def get_disease_list():
+async def get_disease_list(request: Request):
+    classifier = _get_classifier(request)
     try:
-        classifier = DiseaseClassifier()
-        diseases = classifier.class_names
-        return DiseaseListResponse(diseases=diseases)
+        return DiseaseListResponse(diseases=classifier.class_names)
     except Exception:
         return DiseaseListResponse(diseases=[])

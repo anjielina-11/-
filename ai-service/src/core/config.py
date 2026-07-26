@@ -23,6 +23,17 @@ class Settings(BaseSettings):
     CLASS_TO_IDX_PATH: Path = AI_SERVICE_ROOT / "class_to_idx.pth"
     NUM_CLASSES: int = 18
     CONFIDENCE_THRESHOLD: float = 0.6
+    MODEL_ALLOWED_ROOTS: str = ""
+
+    @property
+    def model_allowed_roots_list(self):
+        roots = [AI_SERVICE_ROOT, Path("/app")]
+        roots.extend(
+            resolve_service_path(value.strip())
+            for value in self.MODEL_ALLOWED_ROOTS.split(",")
+            if value.strip()
+        )
+        return list(dict.fromkeys(root.resolve() for root in roots))
 
     RAG_VECTOR_DB_PATH: Path = AI_SERVICE_ROOT / "chroma_db"
     RAG_KNOWLEDGE_DOCS_PATH: Path = AI_SERVICE_ROOT / "knowledge_docs"

@@ -1,7 +1,10 @@
+from io import BytesIO
+from types import SimpleNamespace
+
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
-from io import BytesIO
+
 from src.main import app
 from src.services.rag_service import RAGService
 
@@ -9,18 +12,36 @@ from src.services.rag_service import RAGService
 client = TestClient(app)
 
 
+class FakeClassifier:
+    def predict_from_bytes(self, _image_bytes):
+        return "rice_blast", 0.91
+
+
+class FakeRuntime:
+    def get_classifier(self):
+        return FakeClassifier()
+
+    def get_runtime(self):
+        return SimpleNamespace(loaded=True)
+
+
+@pytest.fixture(autouse=True)
+def configured_model_runtime(monkeypatch):
+    monkeypatch.setattr(app.state, "model_runtime", FakeRuntime(), raising=False)
+
+
 @pytest.fixture
 def mock_image():
-    img = Image.new('RGB', (224, 224), color='red')
+    img = Image.new("RGB", (224, 224), color="red")
     buf = BytesIO()
-    img.save(buf, format='JPEG')
+    img.save(buf, format="JPEG")
     buf.seek(0)
-    return ('test.jpg', buf, 'image/jpeg')
+    return ("test.jpg", buf, "image/jpeg")
 
 
 def test_health_endpoint():
     response = client.get("/health")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data.get("status") in {"healthy", "degraded"}
@@ -28,14 +49,14 @@ def test_health_endpoint():
 
 def test_diagnosis_image_endpoint(mock_image):
     files = {"image": mock_image}
-    
+
     response = client.post("/api/v1/diagnosis/image", files=files)
-    
+
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "disease_name" in data or "status" in data
-    
+
     if "disease_name" in data:
         assert isinstance(data["disease_name"], str)
         assert "confidence" in data
@@ -50,19 +71,19 @@ def test_diagnosis_image_with_crop_and_weather(mock_image):
     files = {"image": mock_image}
     data = {
         "crop_info": "温室番茄",
-        "weather_info": "气温25°C，湿度70%"
+        "weather_info": "气温25°C，湿度70%",
     }
-    
+
     response = client.post("/api/v1/diagnosis/image", files=files, data=data)
-    
+
     assert response.status_code == 200
 
 
 def test_diagnosis_image_invalid_format():
     files = {"image": ("test.txt", b"not an image", "text/plain")}
-    
+
     response = client.post("/api/v1/diagnosis/image", files=files)
-    
+
     assert response.status_code == 400
 
 
@@ -74,16 +95,21 @@ def test_replace_managed_rag_documents_endpoint(monkeypatch):
         return 3
 
     monkeypatch.setattr(RAGService, "replace_documents", fake_replace)
-    response = client.put("/api/v1/rag/documents", json={
-        "documents": [{
-            "id": "k1",
-            "title": "稻瘟病防治",
-            "category": "disease",
-            "version": 2,
-            "content": "连续降雨后加强巡田",
-            "tags": ["水稻"],
-        }]
-    })
+    response = client.put(
+        "/api/v1/rag/documents",
+        json={
+            "documents": [
+                {
+                    "id": "k1",
+                    "title": "稻瘟病防治",
+                    "category": "disease",
+                    "version": 2,
+                    "content": "连续降雨后加强巡田",
+                    "tags": ["水稻"],
+                }
+            ]
+        },
+    )
 
     assert response.status_code == 200
     assert response.json() == {

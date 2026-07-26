@@ -1,7 +1,6 @@
 from PIL import Image
 from io import BytesIO
 from dataclasses import dataclass
-from typing import Optional
 from src.core.config import settings
 from .inference_service import DiseaseClassifier, UnknownDiseaseError
 
@@ -17,32 +16,12 @@ class DiagnosisItem:
 
 
 class DiagnosisService:
-    _classifier = None
-
-    @classmethod
-    def _get_classifier(cls):
-        if cls._classifier is None:
-            try:
-                cls._classifier = DiseaseClassifier()
-            except FileNotFoundError:
-                cls._classifier = None
-        return cls._classifier
-
     @staticmethod
-    def analyze_image(image_bytes: bytes, filename: str) -> list[DiagnosisItem]:
-        classifier = DiagnosisService._get_classifier()
-
-        if classifier is None:
-            return [
-                DiagnosisItem(
-                    disease_name="模型未加载",
-                    confidence=0.0,
-                    description="模型文件未找到，使用默认诊断结果",
-                    recommended_treatment="请先训练模型并保存权重",
-                    severity="未知"
-                )
-            ]
-
+    def analyze_image(
+        image_bytes: bytes,
+        filename: str,
+        classifier: DiseaseClassifier,
+    ) -> list[DiagnosisItem]:
         try:
             disease_name, confidence = classifier.predict_from_bytes(image_bytes)
 
