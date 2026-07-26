@@ -123,6 +123,25 @@ class IngestResponse(BaseModel):
     chunks_count: int = Field(..., description="分块数量")
 
 
+class KnowledgeSyncDocument(BaseModel):
+    id: str
+    title: str
+    category: str
+    version: int
+    content: str
+    tags: List[str] = Field(default_factory=list)
+
+
+class KnowledgeSyncRequest(BaseModel):
+    documents: List[KnowledgeSyncDocument] = Field(default_factory=list)
+
+
+class KnowledgeSyncResponse(BaseModel):
+    success: bool
+    documents_count: int
+    chunks_count: int
+
+
 class RetrieveRequest(BaseModel):
     query: str = Field(..., description="查询文本")
     top_k: Optional[int] = Field(3, description="返回数量")

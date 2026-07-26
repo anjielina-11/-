@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from io import BytesIO
 from src.main import app
+from src.services.rag_service import RAGService
 
 
 client = TestClient(app)
@@ -63,3 +64,31 @@ def test_diagnosis_image_invalid_format():
     response = client.post("/api/v1/diagnosis/image", files=files)
     
     assert response.status_code == 400
+
+
+def test_replace_managed_rag_documents_endpoint(monkeypatch):
+    captured = {}
+
+    def fake_replace(documents):
+        captured["documents"] = documents
+        return 3
+
+    monkeypatch.setattr(RAGService, "replace_documents", fake_replace)
+    response = client.put("/api/v1/rag/documents", json={
+        "documents": [{
+            "id": "k1",
+            "title": "稻瘟病防治",
+            "category": "disease",
+            "version": 2,
+            "content": "连续降雨后加强巡田",
+            "tags": ["水稻"],
+        }]
+    })
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "documents_count": 1,
+        "chunks_count": 3,
+    }
+    assert captured["documents"][0].id == "k1"

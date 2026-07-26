@@ -1,5 +1,8 @@
 from fastapi import APIRouter, HTTPException
-from ..models.schemas import RetrieveRequest, RetrieveResponse, IngestRequest, IngestResponse
+from ..models.schemas import (
+    IngestRequest, IngestResponse, KnowledgeSyncRequest, KnowledgeSyncResponse,
+    RetrieveRequest, RetrieveResponse,
+)
 from ..services.rag_service import RAGService
 
 router = APIRouter(prefix="/api/v1/rag", tags=["rag"])
@@ -27,6 +30,22 @@ async def ingest_documents(request: IngestRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"导入失败: {str(e)}")
 
+
+@router.put(
+    "/documents",
+    response_model=KnowledgeSyncResponse,
+    summary="同步后台已发布知识文档",
+)
+async def replace_managed_documents(request: KnowledgeSyncRequest):
+    try:
+        chunks_count = RAGService.replace_documents(request.documents)
+        return KnowledgeSyncResponse(
+            success=True,
+            documents_count=len(request.documents),
+            chunks_count=chunks_count,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"知识库同步失败: {str(e)}")
 
 @router.post(
     "/retrieve",

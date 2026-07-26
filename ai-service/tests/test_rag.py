@@ -1,5 +1,6 @@
 import pytest
 import os
+from src.models.schemas import KnowledgeSyncDocument
 from src.services.rag_service import RAGService
 from src.core.config import settings
 from langchain_community.vectorstores import Chroma
@@ -135,3 +136,57 @@ def test_markdown_ingest_preserves_disease_heading_on_all_chunks(setup_and_teard
     assert stored["documents"]
     assert all(disease in content for content in stored["documents"])
     assert all(item.get("disease") == disease for item in stored["metadatas"])
+
+
+def test_replace_documents_rebuilds_collection_and_clears_on_empty(setup_and_teardown):
+    count = RAGService.replace_documents([
+        KnowledgeSyncDocument(
+            id="k1",
+            title="唯一验收知识",
+            category="disease",
+            version=2,
+            content="稻瘟病连续降雨后加强巡田",
+            tags=["水稻", "稻瘟病"],
+        )
+    ])
+
+    assert count > 0
+    result = RAGService.retrieve("连续降雨 巡田", top_k=1)
+    assert result[0]["metadata"]["document_id"] == "k1"
+    assert result[0]["metadata"]["title"] == "唯一验收知识"
+    assert result[0]["metadata"]["version"] == 2
+
+    assert RAGService.replace_documents([]) == 0
+    assert RAGService.retrieve("连续降雨", top_k=1) == []
+
+
+def test_replace_documents_keeps_previous_collection_when_build_fails(setup_and_teardown, monkeypatch):
+    RAGService.replace_documents([
+        KnowledgeSyncDocument(
+            id="stable",
+            title="稳定知识",
+            category="disease",
+            version=1,
+            content="稳定内容用于验证回滚",
+        )
+    ])
+    original_from_documents = Chroma.from_documents
+
+    def fail_build(*args, **kwargs):
+        raise RuntimeError("embedding failed")
+
+    monkeypatch.setattr(Chroma, "from_documents", fail_build)
+    with pytest.raises(RuntimeError, match="embedding failed"):
+        RAGService.replace_documents([
+            KnowledgeSyncDocument(
+                id="broken",
+                title="失败知识",
+                category="disease",
+                version=1,
+                content="不应覆盖旧知识库",
+            )
+        ])
+
+    monkeypatch.setattr(Chroma, "from_documents", original_from_documents)
+    result = RAGService.retrieve("稳定内容", top_k=1)
+    assert result[0]["metadata"]["document_id"] == "stable"

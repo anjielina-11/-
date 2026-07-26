@@ -1,5 +1,6 @@
 import os
 import ssl
+import uuid
 
 os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
 
@@ -10,6 +11,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from ..core.config import settings
 from ..core.paths import resolve_service_path
+from ..models.schemas import KnowledgeSyncDocument
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -142,6 +144,101 @@ class RAGService:
         return prepared
 
     @classmethod
+    def _split_documents(cls, documents: list) -> list:
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=settings.RAG_CHUNK_SIZE,
+            chunk_overlap=settings.RAG_CHUNK_OVERLAP,
+            length_function=len,
+            separators=["\n\n", "\n", "。", "！", "？", ".", "!", "?", "；", ";", ""]
+        )
+        prepared_documents = cls._prepare_documents_for_chunking(documents)
+        split_docs = text_splitter.split_documents(prepared_documents)
+        for document in split_docs:
+            disease = document.metadata.get("disease")
+            section = document.metadata.get("section")
+            if disease and disease not in document.page_content and section:
+                document.page_content = f"## {section}\n\n{document.page_content}"
+        return split_docs
+
+    @classmethod
+    def _managed_documents(cls, documents: list[KnowledgeSyncDocument]) -> list:
+        managed = []
+        for item in documents:
+            metadata = {
+                "document_id": item.id,
+                "title": item.title,
+                "category": item.category,
+                "version": item.version,
+                "source": item.title,
+                "tags": ",".join(item.tags),
+            }
+            searchable = f"{item.title} {item.content}"
+            disease = next((name for name in cls.DISEASE_ALIASES.values() if name in searchable), None)
+            if disease:
+                metadata["disease"] = disease
+            managed.append(Document(page_content=item.content, metadata=metadata))
+        return managed
+
+    @classmethod
+    def replace_documents(cls, documents: list[KnowledgeSyncDocument]) -> int:
+        split_docs = cls._split_documents(cls._managed_documents(documents))
+        persist_directory = str(resolve_service_path(settings.RAG_VECTOR_DB_PATH))
+        embeddings = cls._get_embeddings()
+        old_store = cls._get_vector_store()
+        staging_name = f"{cls.COLLECTION_NAME}__staging_{uuid.uuid4().hex}"
+        backup_name = f"{cls.COLLECTION_NAME}__backup_{uuid.uuid4().hex}"
+        staging_store = None
+        old_renamed = False
+        staging_promoted = False
+
+        try:
+            if split_docs:
+                staging_store = Chroma.from_documents(
+                    documents=split_docs,
+                    embedding=embeddings,
+                    collection_name=staging_name,
+                    persist_directory=persist_directory,
+                )
+            else:
+                staging_store = Chroma(
+                    collection_name=staging_name,
+                    persist_directory=persist_directory,
+                    embedding_function=embeddings,
+                )
+
+            if old_store is not None:
+                old_store._collection.modify(name=backup_name)
+                old_renamed = True
+
+            staging_store._collection.modify(name=cls.COLLECTION_NAME)
+            staging_promoted = True
+            cls._vector_store = Chroma(
+                collection_name=cls.COLLECTION_NAME,
+                persist_directory=persist_directory,
+                embedding_function=embeddings,
+            )
+        except Exception:
+            if staging_store is not None:
+                try:
+                    collection_name = cls.COLLECTION_NAME if staging_promoted else staging_name
+                    staging_store._client.delete_collection(collection_name)
+                except Exception:
+                    pass
+            if old_store is not None and old_renamed:
+                try:
+                    old_store._collection.modify(name=cls.COLLECTION_NAME)
+                except Exception:
+                    pass
+            cls._vector_store = old_store
+            raise
+
+        if old_store is not None and old_renamed:
+            try:
+                old_store._client.delete_collection(backup_name)
+            except Exception:
+                pass
+        return len(split_docs)
+    @classmethod
     def ingest_documents(cls, docs_dir):
         docs_path = resolve_service_path(docs_dir)
         loaders = [
@@ -165,20 +262,7 @@ class RAGService:
         if not documents:
             raise ValueError(f"未在目录 {docs_path} 中找到任何支持的文档文件")
 
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=settings.RAG_CHUNK_SIZE,
-            chunk_overlap=settings.RAG_CHUNK_OVERLAP,
-            length_function=len,
-            separators=["\n\n", "\n", "。", "！", "？", ".", "!", "?", "；", ";", ""]
-        )
-
-        prepared_documents = cls._prepare_documents_for_chunking(documents)
-        split_docs = text_splitter.split_documents(prepared_documents)
-        for document in split_docs:
-            disease = document.metadata.get("disease")
-            section = document.metadata.get("section")
-            if disease and disease not in document.page_content:
-                document.page_content = f"## {section}\n\n{document.page_content}"
+        split_docs = cls._split_documents(documents)
 
         if cls._vector_store is not None and cls._vector_store._collection.count() > 0:
             cls._vector_store.delete_collection()
