@@ -19,7 +19,8 @@ import {
 } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete } from '@element-plus/icons-vue'
 import request from '@/utils/request'
-import { ensureFarmAvailable, parsePositiveArea, type FarmOption } from '@/utils/farmWorkflow'
+import { parsePositiveArea, type FarmOption } from '@/utils/farmWorkflow'
+import { validateFarmArea, validateFieldArea } from '@/utils/agriculturalValidation'
 
 export interface IFarm {
   id: string
@@ -209,38 +210,19 @@ const updateFarmStatus = async (farm: Farm) => {
   }
 }
 
-const createFirstFarm = async (): Promise<Farm> => {
-  const { value } = await ElMessageBox.prompt(
-    '当前账号还没有农场，请先创建一个农场后再新增地块。',
-    '创建首个农场',
-    {
-      confirmButtonText: '创建并继续',
-      cancelButtonText: '取消',
-      inputPlaceholder: '请输入农场名称',
-      inputValidator: value => value.trim().length > 0 || '请输入农场名称',
-      closeOnClickModal: false
-    }
-  )
-  const farm = await request.post<Farm>('/farms', { name: value.trim() })
-  farms.value = [farm]
-  ElMessage.success('农场创建成功')
-  return farm
-}
-
-const handleAdd = async () => {
-  try {
-    const farm = await ensureFarmAvailable(farms.value, createFirstFarm)
-    dialogTitle.value = '新增地块'
-    editId.value = null
-    form.name = ''
-    form.farmId = farm.id
-    form.area = ''
-    form.soilType = ''
-    dialogVisible.value = true
-  } catch (error) {
-    if (error === 'cancel' || error === 'close') return
-    ElMessage.error('创建农场失败，请稍后重试')
+const handleAdd = () => {
+  if (farms.value.length === 0) {
+    ElMessage.warning('\u8bf7\u5148\u521b\u5efa\u519c\u573a\u5e76\u586b\u5199\u6709\u6548\u9762\u79ef\uff0c\u518d\u65b0\u589e\u5730\u5757')
+    openFarmDialog()
+    return
   }
+  dialogTitle.value = '\u65b0\u589e\u5730\u5757'
+  editId.value = null
+  form.name = ''
+  form.farmId = farms.value[0].id
+  form.area = ''
+  form.soilType = ''
+  dialogVisible.value = true
 }
 
 const openFarmDialog = () => {
@@ -259,18 +241,18 @@ const createFarmInDialog = async () => {
 
   farmCreating.value = true
   try {
-    const payload: { name: string; address?: string; areaMu?: number } = { name }
+    const areaMu = validateFarmArea(farmForm.areaMu)
+    const payload: { name: string; address?: string; areaMu: number } = { name, areaMu }
     const address = farmForm.address.trim()
     if (address) payload.address = address
-    if (farmForm.areaMu.trim()) payload.areaMu = parsePositiveArea(farmForm.areaMu)
 
-    const createdFarm = await request.post<Farm>('/farms', payload)
+    const createdFarm = await request.post<Farm>('/farms', payload, { silent: true })
     farms.value.push(createdFarm)
     form.farmId = createdFarm.id
     farmDialogVisible.value = false
     ElMessage.success('农场创建成功，已自动选中')
-  } catch {
-    ElMessage.error('创建农场失败，请检查填写内容后重试')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '\u521b\u5efa\u519c\u573a\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u586b\u5199\u5185\u5bb9\u540e\u91cd\u8bd5')
   } finally {
     farmCreating.value = false
   }
@@ -304,32 +286,35 @@ const handleDelete = async (row: IFarm) => {
 }
 
 const handleSubmit = async () => {
-  formRef.value?.validate(async (valid) => {
-    if (!valid) return
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
 
-    try {
-      const areaMu = parsePositiveArea(form.area)
-      if (editId.value) {
-        await request.put(`/farms/${form.farmId}/fields/${editId.value}`, {
-          name: form.name,
-          areaMu,
-          soilType: form.soilType
-        })
-        ElMessage.success('修改成功')
-      } else {
-        await request.post(`/farms/${form.farmId}/fields`, {
-          name: form.name,
-          areaMu,
-          soilType: form.soilType
-        })
-        ElMessage.success('新增成功')
-      }
-      dialogVisible.value = false
-      fetchData()
-    } catch (error) {
-      ElMessage.error(editId.value ? '修改失败' : '新增失败')
+  try {
+    const farm = farms.value.find(item => item.id === form.farmId)
+    if (!farm) throw new Error('\u6240\u5c5e\u519c\u573a\u4e0d\u5b58\u5728\uff0c\u8bf7\u5237\u65b0\u9875\u9762\u540e\u91cd\u8bd5')
+
+    const otherFieldArea = allFields.value
+      .filter(field => field.farmId === form.farmId && field.id !== editId.value)
+      .reduce((sum, field) => sum + field.area, 0)
+    const areaMu = validateFieldArea(form.area, farm.areaMu ?? 0, otherFieldArea)
+    const payload = {
+      name: form.name.trim(),
+      areaMu,
+      soilType: form.soilType
     }
-  })
+
+    if (editId.value) {
+      await request.put(`/farms/${form.farmId}/fields/${editId.value}`, payload, { silent: true })
+      ElMessage.success('\u4fee\u6539\u6210\u529f')
+    } else {
+      await request.post(`/farms/${form.farmId}/fields`, payload, { silent: true })
+      ElMessage.success('\u65b0\u589e\u6210\u529f')
+    }
+    dialogVisible.value = false
+    await fetchData()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : editId.value ? '\u4fee\u6539\u5931\u8d25' : '\u65b0\u589e\u5931\u8d25')
+  }
 }
 
 const handleClose = () => {
@@ -494,7 +479,7 @@ onMounted(() => {
           </div>
         </ElFormItem>
         <ElFormItem label="面积（亩）" prop="area">
-          <ElInput v-model="form.area" type="number" placeholder="请输入面积" />
+          <ElInput v-model="form.area" type="number" min="0.01" step="0.01" placeholder="请输入面积" />
         </ElFormItem>
         <ElFormItem label="土壤类型" prop="soilType">
           <ElSelect v-model="form.soilType" placeholder="请选择土壤类型" style="width: 100%">
@@ -525,8 +510,8 @@ onMounted(() => {
         <ElFormItem label="所在地址">
           <ElInput v-model="farmForm.address" maxlength="100" placeholder="例如：云南省昆明市呈贡区" />
         </ElFormItem>
-        <ElFormItem label="面积（亩）">
-          <ElInput v-model="farmForm.areaMu" type="number" min="0" placeholder="选填" />
+        <ElFormItem label="面积（亩）" required>
+          <ElInput v-model="farmForm.areaMu" type="number" min="0.01" step="0.01" placeholder="请输入农场总面积" />
         </ElFormItem>
       </ElForm>
       <template #footer>

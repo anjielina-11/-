@@ -22,6 +22,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 @ExtendWith(MockitoExtension.class)
 class FarmServiceTest {
 
@@ -111,6 +114,98 @@ class FarmServiceTest {
 
         assertEquals(ErrorCode.FIELD_HAS_PLANTING_HISTORY.getCode(), error.getCode());
         verify(fieldMapper, never()).deleteById("field-1");
+    }
+
+
+    @Test
+    void rejectsFarmWithoutValidNameOrArea() {
+        var farm = new Farm();
+        farm.setName("  ");
+        farm.setAreaMu(BigDecimal.TEN);
+        var nameError = assertThrows(BusinessException.class, () -> service.create(farm, "owner-1"));
+        assertEquals(ErrorCode.FARM_NAME_REQUIRED.getCode(), nameError.getCode());
+
+        farm.setName("\u793a\u8303\u519c\u573a");
+        farm.setAreaMu(BigDecimal.ZERO);
+        var areaError = assertThrows(BusinessException.class, () -> service.create(farm, "owner-1"));
+        assertEquals(ErrorCode.FARM_AREA_INVALID.getCode(), areaError.getCode());
+        verify(farmMapper, never()).insert(any(Farm.class));
+    }
+
+    @Test
+    void rejectsFarmAreaSmallerThanExistingFields() {
+        var farm = farm("farm-1", "owner-1");
+        farm.setAreaMu(new BigDecimal("20"));
+        var field = field("field-1", "farm-1", "12");
+        when(farmMapper.selectById("farm-1")).thenReturn(farm);
+        when(fieldMapper.selectList(any())).thenReturn(List.of(field));
+        var update = new Farm();
+        update.setAreaMu(new BigDecimal("10"));
+
+        var error = assertThrows(BusinessException.class,
+                () -> service.update("farm-1", update, "owner-1"));
+
+        assertEquals(ErrorCode.FARM_AREA_BELOW_FIELDS.getCode(), error.getCode());
+        verify(farmMapper, never()).updateById(any(Farm.class));
+    }
+
+    @Test
+    void rejectsFieldWhenFarmCapacityWouldBeExceeded() {
+        var farm = farm("farm-1", "owner-1");
+        farm.setAreaMu(new BigDecimal("10"));
+        when(farmMapper.selectById("farm-1")).thenReturn(farm);
+        when(fieldMapper.selectList(any())).thenReturn(List.of(field("field-1", "farm-1", "6")));
+        var newField = field(null, null, "5");
+        newField.setName("\u4e8c\u53f7\u5730\u5757");
+
+        var error = assertThrows(BusinessException.class,
+                () -> service.addField("farm-1", newField, "owner-1"));
+
+        assertEquals(ErrorCode.FIELD_AREA_EXCEEDS_FARM.getCode(), error.getCode());
+        verify(fieldMapper, never()).insert(any(Field.class));
+    }
+
+    @Test
+    void rejectsShrinkingFieldBelowUnharvestedPlantingArea() {
+        var farm = farm("farm-1", "owner-1");
+        farm.setAreaMu(new BigDecimal("20"));
+        var field = field("field-1", "farm-1", "10");
+        when(farmMapper.selectById("farm-1")).thenReturn(farm);
+        when(fieldMapper.selectById("field-1")).thenReturn(field);
+        var cycle = new com.yunong.module.crop.entity.PlantingCycle();
+        cycle.setAreaMu(new BigDecimal("8"));
+        cycle.setStatus("active");
+        when(cycleMapper.selectList(any())).thenReturn(List.of(cycle));
+        var update = new Field();
+        update.setAreaMu(new BigDecimal("7"));
+
+        var error = assertThrows(BusinessException.class,
+                () -> service.updateField("farm-1", "field-1", update, "owner-1"));
+
+        assertEquals(ErrorCode.FIELD_AREA_BELOW_ACTIVE_PLANTING.getCode(), error.getCode());
+        verify(fieldMapper, never()).updateById(any(Field.class));
+    }
+
+    @Test
+    void rejectsArchivingFarmWithUnharvestedPlantingCycle() {
+        var farm = farm("farm-1", "owner-1");
+        when(farmMapper.selectById("farm-1")).thenReturn(farm);
+        when(fieldMapper.selectList(any())).thenReturn(List.of(field("field-1", "farm-1", "5")));
+        when(cycleMapper.selectCount(any())).thenReturn(1L);
+
+        var error = assertThrows(BusinessException.class,
+                () -> service.updateStatus("farm-1", "archived", "owner-1"));
+
+        assertEquals(ErrorCode.FARM_HAS_ACTIVE_PLANTING.getCode(), error.getCode());
+    }
+
+    private Field field(String id, String farmId, String area) {
+        var field = new Field();
+        field.setId(id);
+        field.setFarmId(farmId);
+        field.setName("\u4e00\u53f7\u5730\u5757");
+        field.setAreaMu(new BigDecimal(area));
+        return field;
     }
 
     private Farm farm(String id, String ownerId) {

@@ -34,7 +34,15 @@ public enum ErrorCode {
     NOT_FARM_OWNER(3003, "不是农场所有者"),
     FARM_STATUS_INVALID(3004, "\u519c\u573a\u72b6\u6001\u4e0d\u5408\u6cd5"),
     FARM_ARCHIVED(3005, "\u519c\u573a\u5df2\u5f52\u6863\uff0c\u8bf7\u5148\u6062\u590d\u519c\u573a"),
-    FIELD_HAS_PLANTING_HISTORY(3006, "\u5730\u5757\u5b58\u5728\u79cd\u690d\u8bb0\u5f55\uff0c\u4e0d\u80fd\u5220\u9664"),
+    FIELD_HAS_PLANTING_HISTORY(3006, "地块存在种植记录，不能删除"),
+    FARM_NAME_REQUIRED(3007, "农场名称不能为空"),
+    FARM_AREA_INVALID(3008, "农场面积必须大于0"),
+    FIELD_NAME_REQUIRED(3009, "地块名称不能为空"),
+    FIELD_AREA_INVALID(3010, "地块面积必须大于0"),
+    FIELD_AREA_EXCEEDS_FARM(3011, "地块总面积不能超过农场面积"),
+    FARM_AREA_BELOW_FIELDS(3012, "农场面积不能小于已有地块总面积"),
+    FIELD_AREA_BELOW_ACTIVE_PLANTING(3013, "地块面积不能小于当前未收获种植面积"),
+    FARM_HAS_ACTIVE_PLANTING(3014, "农场存在未收获的种植记录，不能归档"),
 
     // 作物相关 4xxx
     CROP_NOT_FOUND(4001, "作物不存在"),
@@ -42,7 +50,14 @@ public enum ErrorCode {
     CYCLE_ALREADY_COMPLETED(4003, "种植周期已完成"),
     CROP_STATUS_INVALID(4004, "\u4f5c\u7269\u72b6\u6001\u4e0d\u5408\u6cd5"),
     CYCLE_HAS_BUSINESS_HISTORY(4005, "\u79cd\u690d\u5468\u671f\u5b58\u5728\u89c2\u6d4b\u6216\u519c\u4e8b\u4efb\u52a1\uff0c\u4e0d\u80fd\u5220\u9664"),
-    CROP_INACTIVE(4006, "\u4f5c\u7269\u5df2\u505c\u7528\uff0c\u8bf7\u9009\u62e9\u542f\u7528\u4e2d\u7684\u4f5c\u7269"),
+    CROP_INACTIVE(4006, "作物已停用，请选择启用中的作物"),
+    PLANTING_REQUIRED_FIELDS(4007, "种植记录缺少必填信息"),
+    PLANTING_DATE_INVALID(4008, "种植和收获日期不符合先后顺序"),
+    PLANTING_AREA_INVALID(4009, "种植面积必须大于0"),
+    PLANTING_AREA_EXCEEDS_FIELD(4010, "当前未收获种植总面积不能超过地块面积"),
+    PLANTING_STATUS_INVALID(4011, "种植周期状态不合法"),
+    PLANTING_COMPLETION_INVALID(4012, "结束种植周期时必须填写有效的实际收获日期"),
+    CROP_DATA_INVALID(4013, "\u4f5c\u7269\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a\uff0c\u751f\u957f\u5468\u671f\u548c\u9002\u5b9c\u6e29\u5ea6\u8303\u56f4\u5fc5\u987b\u6709\u6548"),
 
     // 诊断相关 5xxx
     DIAGNOSIS_NOT_FOUND(5001, "诊断记录不存在"),
@@ -55,7 +70,12 @@ public enum ErrorCode {
     TASK_NOT_FOUND(6001, "任务不存在"),
     TASK_STATUS_INVALID(6002, "任务状态不合法"),
     NOT_TASK_ASSIGNEE(6003, "不是任务执行人"),
-    TASK_CANNOT_CANCEL(6004, "\u53ea\u6709\u5f85\u6267\u884c\u4efb\u52a1\u53ef\u4ee5\u53d6\u6d88"),
+    TASK_CANNOT_CANCEL(6004, "只有待执行任务可以取消"),
+    TASK_DATA_INVALID(6005, "农事任务缺少必填信息或优先级不合法"),
+    TASK_DATE_INVALID(6006, "任务日期不合法"),
+    TASK_CANNOT_EDIT(6007, "已完成或已取消任务不能修改业务信息"),
+    TASK_STATUS_TRANSITION_INVALID(6008, "任务状态不能按此顺序流转"),
+    TASK_CYCLE_INVALID(6009, "关联的种植周期不存在"),
 
     // 知识库相关 7xxx
     DOCUMENT_NOT_FOUND(7001, "文档不存在"),

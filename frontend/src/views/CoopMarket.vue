@@ -4,6 +4,7 @@ import { ElTable, ElTableColumn, ElTag, ElButton, ElMessage, ElIcon } from 'elem
 import * as echarts from '@/utils/echarts'
 import { RefreshRight, Top, Bottom, Minus } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+import { buildMarketTrendData } from '@/utils/marketTrend'
 
 interface PriceItem {
   id: string
@@ -18,6 +19,7 @@ interface PriceItem {
 }
 
 const prices = ref<PriceItem[]>([])
+const refreshing = ref(false)
 
 const chartRef1 = ref<HTMLDivElement | null>(null)
 const chartRef2 = ref<HTMLDivElement | null>(null)
@@ -27,6 +29,10 @@ let chartInstance2: echarts.ECharts | null = null
 const upCount = computed(() => prices.value.filter(item => item.trend === 'up').length)
 const downCount = computed(() => prices.value.filter(item => item.trend === 'down').length)
 const stableCount = computed(() => prices.value.filter(item => item.trend === 'stable').length)
+const latestUpdate = computed(() => {
+  const dates = prices.value.map(item => item.date).filter(Boolean).sort()
+  return dates[dates.length - 1] || '暂无数据'
+})
 
 const loadPrices = async () => {
   try {
@@ -77,13 +83,13 @@ const initCharts = () => {
 
 const initPriceTrendChart = () => {
   if (!chartInstance1) return
-  const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
-  const ricePrices = [2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, null, null, null, null, null]
-  const cornPrices = [1.8, 1.9, 2.0, 2.1, 2.2, 2.1, 1.9, null, null, null, null, null]
-  
+  const trend = buildMarketTrendData(prices.value)
+  const colors = ['#2D7D46', '#3A9D5C', '#52C41A', '#73D13D', '#1677FF', '#FA8C16', '#722ED1', '#13C2C2', '#EB2F96']
+
   chartInstance1.setOption({
     title: {
       text: '主要农产品价格趋势',
+      subtext: trend.series.length ? '' : '暂无数据，请点击刷新数据',
       left: 'center',
       top: 16,
       textStyle: {
@@ -103,7 +109,8 @@ const initPriceTrendChart = () => {
       }
     },
     legend: {
-      data: ['水稻', '玉米'],
+      type: 'scroll',
+      data: trend.series.map(item => item.name),
       bottom: 12,
       textStyle: {
         color: 'var(--color-text-secondary)',
@@ -111,19 +118,19 @@ const initPriceTrendChart = () => {
       },
       itemWidth: 16,
       itemHeight: 8,
-      itemGap: 24
+      itemGap: 18
     },
     grid: {
       left: '3%',
       right: '4%',
-      bottom: '15%',
-      top: 70,
+      bottom: '18%',
+      top: 78,
       containLabel: true
     },
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: months,
+      data: trend.dates,
       axisLabel: {
         color: 'var(--color-text-secondary)',
         fontSize: 12
@@ -162,55 +169,25 @@ const initPriceTrendChart = () => {
         }
       }
     },
-    series: [
-      {
-        name: '水稻',
-        type: 'line',
-        smooth: true,
-        data: ricePrices,
-        symbol: 'circle',
-        symbolSize: 8,
-        lineStyle: {
-          color: '#2D7D46',
-          width: 3
-        },
-        itemStyle: {
-          color: '#2D7D46',
-          borderWidth: 2,
-          borderColor: '#fff'
-        },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(45, 125, 70, 0.2)' },
-            { offset: 1, color: 'rgba(45, 125, 70, 0.02)' }
-          ])
-        }
+    series: trend.series.map((item, index) => ({
+      name: item.name,
+      type: 'line',
+      smooth: true,
+      connectNulls: false,
+      data: item.data,
+      symbol: 'circle',
+      symbolSize: 7,
+      lineStyle: {
+        color: colors[index % colors.length],
+        width: 2
       },
-      {
-        name: '玉米',
-        type: 'line',
-        smooth: true,
-        data: cornPrices,
-        symbol: 'circle',
-        symbolSize: 8,
-        lineStyle: {
-          color: '#3A9D5C',
-          width: 3
-        },
-        itemStyle: {
-          color: '#3A9D5C',
-          borderWidth: 2,
-          borderColor: '#fff'
-        },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(58, 157, 92, 0.15)' },
-            { offset: 1, color: 'rgba(58, 157, 92, 0.02)' }
-          ])
-        }
+      itemStyle: {
+        color: colors[index % colors.length],
+        borderWidth: 2,
+        borderColor: '#fff'
       }
-    ]
-  })
+    }))
+  }, true)
 }
 
 const initMarketShareChart = () => {
@@ -281,17 +258,18 @@ const initMarketShareChart = () => {
   })
 }
 
-const handleRefresh = () => {
-  loadPrices()
-  if (chartInstance1) {
-    chartInstance1.dispose()
-    chartInstance1 = null
+const handleRefresh = async () => {
+  refreshing.value = true
+  try {
+    await request.post('/market/fetch')
+    await loadPrices()
+    initPriceTrendChart()
+    ElMessage.success('市场价格已更新')
+  } catch {
+    ElMessage.error('刷新市场价格失败')
+  } finally {
+    refreshing.value = false
   }
-  if (chartInstance2) {
-    chartInstance2.dispose()
-    chartInstance2 = null
-  }
-  initCharts()
 }
 
 const handleResize = () => {
@@ -299,8 +277,8 @@ const handleResize = () => {
   chartInstance2?.resize()
 }
 
-onMounted(() => {
-  loadPrices()
+onMounted(async () => {
+  await loadPrices()
   initCharts()
   window.addEventListener('resize', handleResize)
 })
@@ -321,7 +299,7 @@ onUnmounted(() => {
         <p class="page-subtitle">实时追踪农产品价格变动与市场趋势</p>
       </div>
       <div class="header-actions">
-        <ElButton type="primary" @click="handleRefresh">
+        <ElButton type="primary" :loading="refreshing" @click="handleRefresh">
           <el-icon><RefreshRight /></el-icon>
           刷新数据
         </ElButton>
@@ -383,7 +361,7 @@ onUnmounted(() => {
       <div class="table-header">
         <div class="table-header__left">
           <h3 class="table-title">今日市场价格</h3>
-          <span class="table-update">更新于 2026-07-22 14:30</span>
+          <span class="table-update">更新于 {{ latestUpdate }}</span>
         </div>
       </div>
       <ElTable

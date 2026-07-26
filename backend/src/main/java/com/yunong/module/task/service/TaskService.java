@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Objects;
 import java.util.Set;
 
@@ -52,7 +53,9 @@ public class TaskService {
 
     public FarmingTask create(FarmingTask task, String createdBy) {
         task.setCreatedBy(createdBy);
-        if (task.getStatus() == null) task.setStatus("pending");
+        task.setStatus("pending");
+        task.setCompletedAt(null);
+        validateTask(task, true);
         mapper.insert(task);
         return task;
     }
@@ -74,30 +77,47 @@ public class TaskService {
         var task = mapper.selectById(id);
         if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         assertAssignee(task, currentUserId, privileged);
-        if (update.getTitle() != null) task.setTitle(update.getTitle());
+        boolean structuralUpdate = update.getTitle() != null || update.getDescription() != null
+                || update.getScheduledDate() != null || update.getPriority() != null;
+        if (("completed".equals(task.getStatus()) || "cancelled".equals(task.getStatus())) && structuralUpdate) {
+            throw new BusinessException(ErrorCode.TASK_CANNOT_EDIT);
+        }
+        if ("cancelled".equals(task.getStatus()) && update.getRemark() != null) {
+            throw new BusinessException(ErrorCode.TASK_CANNOT_EDIT);
+        }
+        if (update.getTitle() != null) task.setTitle(update.getTitle().trim());
         if (update.getDescription() != null) task.setDescription(update.getDescription());
         if (update.getScheduledDate() != null) task.setScheduledDate(update.getScheduledDate());
         if (update.getPriority() != null) task.setPriority(update.getPriority());
         if (update.getRemark() != null) task.setRemark(update.getRemark());
+        if (!"completed".equals(task.getStatus())) validateTask(task, update.getScheduledDate() != null);
         mapper.updateById(task);
         return task;
     }
 
     public FarmingTask updateStatus(String id, String status, String currentUserId, boolean privileged) {
-        if (!Set.of("pending", "in_progress", "completed", "cancelled").contains(status))
+        if (!Set.of("pending", "in_progress", "completed", "cancelled").contains(status)) {
             throw new BusinessException(ErrorCode.TASK_STATUS_INVALID);
+        }
         var task = mapper.selectById(id);
         if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         assertAssignee(task, currentUserId, privileged);
-        if ("cancelled".equals(status) && !"pending".equals(task.getStatus())) {
-            throw new BusinessException(ErrorCode.TASK_CANNOT_CANCEL);
-        }
-        if (("completed".equals(task.getStatus()) || "cancelled".equals(task.getStatus()))
-                && !task.getStatus().equals(status)) {
-            throw new BusinessException(ErrorCode.TASK_STATUS_INVALID, "已完成或已取消的任务不能再次流转");
+        String current = task.getStatus();
+        if (status.equals(current)) return task;
+        Map<String, Set<String>> transitions = new HashMap<>();
+        transitions.put("pending", Set.of("in_progress", "cancelled"));
+        transitions.put("in_progress", Set.of("completed"));
+        transitions.put("completed", Set.of());
+        transitions.put("cancelled", Set.of());
+        if (!transitions.getOrDefault(current, Set.of()).contains(status)) {
+            if ("cancelled".equals(status)) throw new BusinessException(ErrorCode.TASK_CANNOT_CANCEL);
+            throw new BusinessException(ErrorCode.TASK_STATUS_TRANSITION_INVALID,
+                    current + " -> " + status);
         }
         task.setStatus(status);
-        if ("completed".equals(status)) task.setCompletedAt(LocalDateTime.now());
+        if ("completed".equals(status) && task.getCompletedAt() == null) {
+            task.setCompletedAt(LocalDateTime.now());
+        }
         mapper.updateById(task);
         return task;
     }
@@ -144,6 +164,35 @@ public class TaskService {
         }
     }
 
+
+    private void validateTask(FarmingTask task, boolean enforceCurrentDate) {
+        if (isBlank(task.getTitle()) || isBlank(task.getTaskType()) || isBlank(task.getAssigneeId())
+                || task.getScheduledDate() == null || task.getPriority() == null
+                || task.getPriority() < 1 || task.getPriority() > 3) {
+            throw new BusinessException(ErrorCode.TASK_DATA_INVALID);
+        }
+        if (enforceCurrentDate && task.getScheduledDate().isBefore(LocalDate.now())) {
+            throw new BusinessException(ErrorCode.TASK_DATE_INVALID,
+                    "\u65b0\u5efa\u4efb\u52a1\u7684\u8ba1\u5212\u65e5\u671f\u4e0d\u80fd\u65e9\u4e8e\u4eca\u5929");
+        }
+        if (!isBlank(task.getCycleId())) {
+            PlantingCycle cycle = cycleMapper.selectById(task.getCycleId());
+            if (cycle == null) throw new BusinessException(ErrorCode.TASK_CYCLE_INVALID);
+            if (cycle.getPlantingDate() != null && task.getScheduledDate().isBefore(cycle.getPlantingDate())) {
+                throw new BusinessException(ErrorCode.TASK_DATE_INVALID,
+                        "\u4efb\u52a1\u65e5\u671f\u4e0d\u80fd\u65e9\u4e8e\u79cd\u690d\u65e5\u671f");
+            }
+            if ("completed".equals(cycle.getStatus())) {
+                throw new BusinessException(ErrorCode.TASK_CYCLE_INVALID,
+                        "\u5df2\u6536\u83b7\u7684\u79cd\u690d\u5468\u671f\u4e0d\u80fd\u65b0\u5efa\u4efb\u52a1");
+            }
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     public FarmingTask autoCreateFromDiagnosis(String diagnosisId, String diseaseName, String treatment,
                                                 String assigneeId, String cycleId) {
         var task = new FarmingTask();
@@ -157,7 +206,9 @@ public class TaskService {
         task.setPriority(3);
         task.setStatus("pending");
         task.setAssigneeId(assigneeId);
+        task.setCreatedBy(assigneeId);
         task.setScheduledDate(LocalDate.now().plusDays(1));
+        validateTask(task, true);
         mapper.insert(task);
         return task;
     }

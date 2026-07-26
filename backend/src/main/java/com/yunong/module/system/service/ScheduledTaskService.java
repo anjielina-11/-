@@ -1,11 +1,7 @@
 package com.yunong.module.system.service;
 
-import com.yunong.module.crop.entity.Crop;
-import com.yunong.module.crop.mapper.CropMapper;
-import com.yunong.module.farm.entity.Farm;
 import com.yunong.module.farm.mapper.FarmMapper;
-import com.yunong.module.market.entity.MarketPrice;
-import com.yunong.module.market.mapper.MarketPriceMapper;
+import com.yunong.module.market.service.MarketService;
 import com.yunong.module.weather.entity.WeatherRecord;
 import com.yunong.module.weather.mapper.WeatherRecordMapper;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +10,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -27,9 +22,8 @@ import java.time.LocalDateTime;
 public class ScheduledTaskService {
 
     private final WeatherRecordMapper weatherMapper;
-    private final MarketPriceMapper marketMapper;
+    private final MarketService marketService;
     private final FarmMapper farmMapper;
-    private final CropMapper cropMapper;
 
     /** 每小时采集天气数据 */
     @Scheduled(cron = "0 0 * * * ?")
@@ -63,21 +57,8 @@ public class ScheduledTaskService {
     public void fetchMarketPrices() {
         log.info("定时任务: 采集市场价格");
         try {
-            var crops = cropMapper.selectList(null);
-            for (var crop : crops) {
-                // 市场价格暂无稳定公共数据源，使用带日期的演示采样值。
-                var record = new MarketPrice();
-                record.setCropId(crop.getId());
-                record.setCropName(crop.getName());
-                record.setPrice(BigDecimal.valueOf(2.5 + Math.random()));
-                record.setUnit("元/公斤");
-                record.setMarketName("昆明市呈贡批发市场");
-                record.setCategory(crop.getCategory());
-                record.setSource("scheduled");
-                record.setRecordedAt(LocalDate.now());
-                marketMapper.insert(record);
-            }
-            log.debug("市场价格采集完成: {} 条", crops.size());
+            int count = marketService.collectTodayPrices();
+            log.debug("市场价格采集完成: {} 条", count);
         } catch (Exception e) {
             log.error("市场价格采集失败", e);
         }

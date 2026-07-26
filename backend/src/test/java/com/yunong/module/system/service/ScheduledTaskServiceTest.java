@@ -1,11 +1,8 @@
 package com.yunong.module.system.service;
 
-import com.yunong.module.crop.entity.Crop;
-import com.yunong.module.crop.mapper.CropMapper;
 import com.yunong.module.farm.entity.Farm;
 import com.yunong.module.farm.mapper.FarmMapper;
-import com.yunong.module.market.entity.MarketPrice;
-import com.yunong.module.market.mapper.MarketPriceMapper;
+import com.yunong.module.market.service.MarketService;
 import com.yunong.module.weather.entity.WeatherRecord;
 import com.yunong.module.weather.mapper.WeatherRecordMapper;
 import org.junit.jupiter.api.Test;
@@ -27,9 +24,8 @@ import static org.mockito.Mockito.when;
 class ScheduledTaskServiceTest {
 
     @Mock WeatherRecordMapper weatherMapper;
-    @Mock MarketPriceMapper marketMapper;
+    @Mock MarketService marketService;
     @Mock FarmMapper farmMapper;
-    @Mock CropMapper cropMapper;
     @InjectMocks ScheduledTaskService service;
 
     @Test
@@ -46,30 +42,20 @@ class ScheduledTaskServiceTest {
     }
 
     @Test
-    void marketCollectionUsesExistingCrops() {
-        var crop = new Crop();
-        crop.setId("f4d4388a-d610-4b73-8793-dfcfa58a309b");
-        crop.setName("水稻");
-        crop.setCategory("粮食");
-        when(cropMapper.selectList(any())).thenReturn(List.of(crop));
+    void marketCollectionDelegatesToMarketService() {
+        when(marketService.collectTodayPrices()).thenReturn(9);
 
         service.fetchMarketPrices();
 
-        var record = ArgumentCaptor.forClass(MarketPrice.class);
-        verify(marketMapper).insert(record.capture());
-        assertEquals(crop.getId(), record.getValue().getCropId());
-        assertEquals(crop.getName(), record.getValue().getCropName());
+        verify(marketService).collectTodayPrices();
     }
 
     @Test
-    void collectionSkipsInsertWhenThereAreNoBusinessEntities() {
+    void weatherCollectionSkipsInsertWhenThereAreNoFarms() {
         when(farmMapper.selectList(any())).thenReturn(List.of());
-        when(cropMapper.selectList(any())).thenReturn(List.of());
 
         service.fetchWeather();
-        service.fetchMarketPrices();
 
         verify(weatherMapper, never()).insert(any(WeatherRecord.class));
-        verify(marketMapper, never()).insert(any(MarketPrice.class));
     }
 }

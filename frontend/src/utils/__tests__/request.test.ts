@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { unwrapApiResponse } from '../request'
 
 describe('API 响应解包', () => {
@@ -10,6 +10,11 @@ describe('API 响应解包', () => {
   it('非 0 业务码时抛出后端消息', () => {
     expect(() => unwrapApiResponse({ code: 40001, data: null, message: '用户名或密码错误' }))
       .toThrow('用户名或密码错误')
+  })
+
+  it('后端未返回消息时生成可读的业务错误', () => {
+    expect(() => unwrapApiResponse({ code: 40001, data: null }))
+      .toThrow('业务请求失败（code=40001）')
   })
 
   it('兼容无统一包装的文件流等响应', () => {

@@ -5,6 +5,7 @@ import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import * as echarts from '@/utils/echarts'
 import request from '@/utils/request'
 import { cycleStatusLabel } from '@/utils/domainMappers'
+import { localToday, validatePlantingInput } from '@/utils/agriculturalValidation'
 
 interface Crop {
   id: string
@@ -63,6 +64,7 @@ interface FieldOption {
   id: string
   name: string
   farmName: string
+  areaMu: number
 }
 
 const crops = ref<Crop[]>([])
@@ -133,12 +135,13 @@ const loadCrops = async () => {
     cropOptions.value = availableCrops.list
     const fieldPages = await Promise.all(farmPage.list.map(async farm => ({
       farm,
-      page: await request.get<PageResult<{ id: string; name: string }>>(`/farms/${farm.id}/fields`)
+      page: await request.get<PageResult<{ id: string; name: string; area?: number }>>(`/farms/${farm.id}/fields`)
     })))
     fieldOptions.value = fieldPages.flatMap(({ farm, page }) => page.list.map(field => ({
       id: field.id,
       name: field.name,
-      farmName: farm.name
+      farmName: farm.name,
+      areaMu: Number(field.area) || 0
     })))
     const cropMap = new Map(cropOptions.value.map(crop => [crop.id, crop]))
     const fieldMap = new Map(fieldOptions.value.map(field => [field.id, field]))
@@ -335,7 +338,7 @@ const completeCycle = async (row: Crop) => {
       '结束种植周期',
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
     )
-    const actualHarvestDate = new Date().toISOString().slice(0, 10)
+    const actualHarvestDate = localToday()
     await request.put(`/planting-cycles/${row.id}`, {
       status: 'completed',
       actualHarvestDate
@@ -350,35 +353,54 @@ const completeCycle = async (row: Crop) => {
 
 const handleSubmit = async () => {
   try {
+    if (!formData.value.cropId) throw new Error('\u8bf7\u9009\u62e9\u4f5c\u7269')
+    const selectedField = fieldOptions.value.find(field => field.id === formData.value.fieldId)
+    if (!selectedField) throw new Error('\u8bf7\u9009\u62e9\u6709\u6548\u5730\u5757')
+
+    const occupiedAreaMu = crops.value
+      .filter(cycle => cycle.fieldId === formData.value.fieldId && cycle.id !== formData.value.id && cycle.status !== '\u5df2\u6536\u83b7')
+      .reduce((sum, cycle) => sum + cycle.area, 0)
+    const areaMu = validatePlantingInput({
+      plantingDate: formData.value.plantedDate,
+      expectedHarvestDate: formData.value.expectedHarvestDate,
+      areaMu: formData.value.area,
+      fieldAreaMu: selectedField.areaMu,
+      occupiedAreaMu,
+      occupiesField: formData.value.status !== '\u5df2\u6536\u83b7'
+    })
+    const payload = {
+      cropId: formData.value.cropId,
+      plantingDate: formData.value.plantedDate,
+      expectedHarvestDate: formData.value.expectedHarvestDate,
+      growthStage: formData.value.growthStage,
+      areaMu,
+      remark: formData.value.notes
+    }
+
     if (editMode.value) {
       await request.put(`/planting-cycles/${formData.value.id}`, {
-        cropId: formData.value.cropId,
-        plantingDate: formData.value.plantedDate,
-        expectedHarvestDate: formData.value.expectedHarvestDate,
-        growthStage: formData.value.growthStage,
-        status: formData.value.status === '生长中' ? 'active' : formData.value.status === '待收获' ? 'pending_harvest' : 'completed',
-        areaMu: formData.value.area,
-        remark: formData.value.notes
-      })
-      ElMessage.success('修改成功')
+        ...payload,
+        status: formData.value.status === '\u751f\u957f\u4e2d' ? 'active' : formData.value.status === '\u5f85\u6536\u83b7' ? 'pending_harvest' : 'completed'
+      }, { silent: true })
+      ElMessage.success('\u4fee\u6539\u6210\u529f')
     } else {
       await request.post('/planting-cycles', {
-        cropId: formData.value.cropId,
-        fieldId: formData.value.fieldId,
-        plantingDate: formData.value.plantedDate,
-        expectedHarvestDate: formData.value.expectedHarvestDate,
-        growthStage: formData.value.growthStage,
-        areaMu: formData.value.area,
-        remark: formData.value.notes
-      })
-      ElMessage.success('添加成功')
+        ...payload,
+        fieldId: formData.value.fieldId
+      }, { silent: true })
+      ElMessage.success('\u6dfb\u52a0\u6210\u529f')
     }
     dialogVisible.value = false
-    loadCrops()
+    await loadCrops()
   } catch (error) {
-    ElMessage.error(editMode.value ? '修改失败' : '添加失败')
+    ElMessage.error(error instanceof Error ? error.message : editMode.value ? '\u4fee\u6539\u5931\u8d25' : '\u6dfb\u52a0\u5931\u8d25')
   }
 }
+
+const disableFutureDate = (date: Date) => localToday(date) > localToday()
+
+const disableExpectedHarvestDate = (date: Date) =>
+  Boolean(formData.value.plantedDate) && localToday(date) < formData.value.plantedDate
 
 const handleResize = () => {
   chartInstance?.resize()
@@ -548,13 +570,13 @@ onUnmounted(() => {
           </ElSelect>
         </ElFormItem>
         <ElFormItem label="种植日期" required>
-          <ElDatePicker v-model="formData.plantedDate" type="date" value-format="YYYY-MM-DD" placeholder="选择种植日期" style="width: 100%" />
+          <ElDatePicker v-model="formData.plantedDate" type="date" value-format="YYYY-MM-DD" :disabled-date="disableFutureDate" placeholder="选择种植日期" style="width: 100%" />
         </ElFormItem>
         <ElFormItem label="预计收获日期" required>
-          <ElDatePicker v-model="formData.expectedHarvestDate" type="date" value-format="YYYY-MM-DD" placeholder="选择预计收获日期" style="width: 100%" />
+          <ElDatePicker v-model="formData.expectedHarvestDate" type="date" value-format="YYYY-MM-DD" :disabled-date="disableExpectedHarvestDate" placeholder="选择预计收获日期" style="width: 100%" />
         </ElFormItem>
         <ElFormItem label="面积(亩)" required>
-          <ElInput v-model.number="formData.area" placeholder="请输入面积" />
+          <ElInput type="number" min="0.01" step="0.01" v-model.number="formData.area" placeholder="请输入面积" />
         </ElFormItem>
         <ElFormItem label="备注">
           <ElInput v-model="formData.notes" type="textarea" :rows="3" placeholder="请输入备注信息" />

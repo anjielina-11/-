@@ -40,6 +40,7 @@ public class MarketController {
     @AuditLog(action = "手动触发价格采集")
     @Operation(summary = "手动触发价格采集(管理员)")
     public R<String> fetch() {
-        return R.ok("市场价格采集任务已提交，定时任务每日8:00自动执行");
+        int count = service.collectTodayPrices();
+        return R.ok("已更新 " + count + " 种农产品的市场价格");
     }
 }
