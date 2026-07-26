@@ -20,6 +20,15 @@ describe('FarmerCrops planting form', () => {
     expect(source).toContain('formData.value.cropId = createdCrop.id')
   })
 
+  it('selects and submits a canonical growth stage', () => {
+    const source = readSource()
+
+    expect(source).toContain('growthStage')
+    expect(source).toContain("value: 'tillering'")
+    expect(source).toContain('growthStage: formData.value.growthStage')
+    expect(source).toContain('生育期')
+  })
+
   it('ships multiple common crop choices for first-time use', () => {
     const migration = readFileSync(
       resolve(process.cwd(), '../backend/src/main/resources/db/migration/V4__seed_common_crops.sql'),

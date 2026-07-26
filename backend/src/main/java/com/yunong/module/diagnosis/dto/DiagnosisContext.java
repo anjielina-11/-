@@ -1,5 +1,6 @@
 package com.yunong.module.diagnosis.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -17,7 +18,7 @@ public record DiagnosisContext(
     public record CropContext(
             String name,
             String variety,
-            LocalDate plantingDate,
+            @JsonFormat(pattern = "yyyy-MM-dd") LocalDate plantingDate,
             String growthStage
     ) {}
 
@@ -29,7 +30,7 @@ public record DiagnosisContext(
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record WeatherForecast(
-            LocalDate date,
+            @JsonFormat(pattern = "yyyy-MM-dd") LocalDate date,
             String weather,
             BigDecimal temperature,
             BigDecimal humidity,

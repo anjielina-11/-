@@ -27,6 +27,7 @@ import io.minio.PutObjectArgs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
@@ -54,6 +55,7 @@ public class DiagnosisService {
         var cycle = plantingCycleMapper.selectById(cycleId);
         if (cycle == null) throw new BusinessException(ErrorCode.PLANTING_CYCLE_NOT_FOUND);
         if (!userId.equals(cycle.getCreatedBy())) throw new BusinessException(ErrorCode.FORBIDDEN);
+        validateUploadFile(file);
 
         String hash = DigestUtil.sha256Hex(file.getBytes());
         if (drMapper.selectCount(new LambdaQueryWrapper<DiagnosisRecord>()
@@ -96,6 +98,21 @@ public class DiagnosisService {
         return result;
     }
 
+    private void validateUploadFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择需要上传的病害图片");
+        }
+        var contentType = Optional.ofNullable(file.getContentType()).orElse("").toLowerCase(Locale.ROOT);
+        var filename = Optional.ofNullable(file.getOriginalFilename()).orElse("").toLowerCase(Locale.ROOT);
+        boolean allowedType = Set.of("image/jpeg", "image/png", "image/webp", "image/gif").contains(contentType);
+        boolean allowedExtension = Set.of(".jpg", ".jpeg", ".png", ".webp", ".gif").stream()
+                .anyMatch(filename::endsWith);
+        if (!allowedType || !allowedExtension) {
+            throw new BusinessException(ErrorCode.FILE_TYPE_NOT_SUPPORTED,
+                    "仅支持 JPG、PNG、WebP 或 GIF 图片");
+        }
+    }
+
     public DiagnosisRecord getById(String id, String userId, boolean privileged) {
         var dr = drMapper.selectById(id);
         if (dr == null) throw new BusinessException(ErrorCode.DIAGNOSIS_NOT_FOUND);
@@ -106,7 +123,7 @@ public class DiagnosisService {
     public DiagnosisImage getImage(String id, String userId, boolean privileged) {
         var dr = getById(id, userId, privileged);
         if (CharSequenceUtil.isBlank(dr.getImageUrl())) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "???????");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "诊断原图路径为空");
         }
         try (var object = minioClient.getObject(GetObjectArgs.builder()
                 .bucket(minioConfig.getBucket())
@@ -114,8 +131,8 @@ public class DiagnosisService {
                 .build())) {
             return new DiagnosisImage(object.readAllBytes(), contentType(dr.getImageUrl()));
         } catch (Exception e) {
-            log.error("????????: id={}, object={}", id, dr.getImageUrl(), e);
-            throw new BusinessException(ErrorCode.MINIO_ERROR, "????????");
+            log.error("读取诊断原图失败: id={}, object={}", id, dr.getImageUrl(), e);
+            throw new BusinessException(ErrorCode.MINIO_ERROR, "读取诊断原图失败");
         }
     }
 
@@ -197,24 +214,40 @@ public class DiagnosisService {
 
         String treatment = null;
         List<DiagnosisResultResponse.Citation> citations = Collections.emptyList();
+        Map<String, Object> contextSummary = Collections.emptyMap();
+        List<Map<String, Object>> agentTrace = Collections.emptyList();
         if (CharSequenceUtil.isNotBlank(dr.getAiResult())) {
             try {
                 var aiJson = JSONUtil.parseObj(dr.getAiResult());
                 treatment = aiJson.getStr("treatment");
-                citations = aiJson.getJSONArray("citations").stream()
-                        .map(item -> JSONUtil.parseObj(item))
-                        .map(item -> new DiagnosisResultResponse.Citation(
-                                item.getStr("docTitle", item.getStr("source", "")),
-                                item.getStr("snippet", item.getStr("content", ""))))
-                        .toList();
+                var citationJson = aiJson.getJSONArray("citations");
+                if (citationJson != null) {
+                    citations = citationJson.stream()
+                            .map(JSONUtil::parseObj)
+                            .map(item -> new DiagnosisResultResponse.Citation(
+                                    item.getStr("docTitle", item.getStr("source", "")),
+                                    item.getStr("snippet", item.getStr("content", ""))))
+                            .toList();
+                }
+                var contextJson = aiJson.getJSONObject("contextSummary");
+                if (contextJson != null) contextSummary = new LinkedHashMap<>(contextJson);
+                var traceJson = aiJson.getJSONArray("agentTrace");
+                if (traceJson != null) {
+                    agentTrace = traceJson.stream()
+                            .map(JSONUtil::parseObj)
+                            .map(item -> (Map<String, Object>) new LinkedHashMap<String, Object>(item))
+                            .toList();
+                }
             } catch (Exception ex) {
-                log.warn("???? {} ? AI ?????????????: {}", dr.getId(), ex.getMessage());
+                log.warn("诊断 {} 的 AI 结果解析失败，将返回基础结果: {}", dr.getId(), ex.getMessage());
             }
         }
         return new DiagnosisResultResponse(status, dr.getDiseaseName(),
-                dr.getConfidence() != null ? dr.getConfidence() : BigDecimal.ZERO, treatment, citations);
+                dr.getConfidence() != null ? dr.getConfidence() : BigDecimal.ZERO, treatment, citations,
+                contextSummary, agentTrace);
     }
 
+    @Transactional
     public DiagnosisRecord review(String id, String status, String comment, String reviewerId) {
         var dr = drMapper.selectById(id);
         if (dr == null) throw new BusinessException(ErrorCode.DIAGNOSIS_NOT_FOUND);
@@ -235,7 +268,7 @@ public class DiagnosisService {
             if (CharSequenceUtil.isNotBlank(dr.getAiResult())) {
                 try { treatment = JSONUtil.parseObj(dr.getAiResult()).getStr("treatment"); }
                 catch (Exception ex) {
-                    log.warn("???? {} ????????????????: {}", dr.getId(), ex.getMessage());
+                    log.warn("诊断 {} 的防治建议解析失败，将保留原始结果: {}", dr.getId(), ex.getMessage());
                 }
             }
             taskService.autoCreateFromDiagnosis(dr.getId(), dr.getDiseaseName(), treatment,

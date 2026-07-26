@@ -1,4 +1,4 @@
-﻿# 小组协作与 Git 规范
+# 小组协作与 Git 规范
 
 ## 1. 成员分工
 
@@ -66,3 +66,44 @@ git push -u origin feature/backend-wangyiin-66
 ## 6. 协作证据边界
 
 本地文档只能说明分工与规范，不能替代 GitHub 的真实时间线。答辩时应展示仓库中的分支、成员提交、Pull Request 和 review 页面；不要补造不存在的 Issue、PR 编号或评审记录。
+
+## 7. GitHub 交付证据清单
+
+老师要求的 Issue、分支、Pull Request 和代码评审必须在 GitHub 上真实发生，本地不能补造历史。三位成员在提交前完成：
+
+1. 各自账号创建或使用本人分支：
+   - `feature/ai-anjielina-11`
+   - `feature/frontend-yinerzhou-10`
+   - `feature/backend-wangyiin-66`
+2. 每人至少用本人账号提交一项与分工一致的真实改动。
+3. 为待完成或已发现的问题创建 Issue，并在 PR 描述中使用 `Closes #编号`。
+4. 个人分支向 `main` 创建 Pull Request，描述改动、测试命令和截图。
+5. 至少由另一位成员提交一次真实 Review（Approve 或带具体意见的 Comment）。
+6. 合并后截图仓库 Insights/Contributors、Branches、Issues、Pull requests 和 Review 时间线作为答辩证据。
+
+### Issue 示例
+
+```text
+标题：fix(frontend): 诊断详情展示 Agent 天气与生育期依据
+负责人：叶俊琪（yinerzhou-10）
+验收：详情页显示 contextSummary、4 条 agentTrace，前端测试通过
+```
+
+### Pull Request 描述模板
+
+```markdown
+## 改动
+- 模块：Frontend / Backend / AI
+- 对应 Issue：Closes #...
+- 主要文件：...
+
+## 验证
+- [ ] 单元测试
+- [ ] 接口/联调测试
+- [ ] 页面截图或日志
+
+## Review
+请另一位组员检查接口契约、异常处理和是否影响其负责模块。
+```
+
+> 当前本地分支与提交只能证明代码演进，不能代替三人 GitHub 账号上的真实协作记录；最终提交前务必按上表完成。

@@ -28,11 +28,28 @@ export interface ICitation {
   snippet: string
 }
 
+export interface IContextSummary {
+  crop_name?: string
+  variety?: string
+  growth_stage_label?: string
+  field_name?: string
+  farm_name?: string
+  weather_days?: number
+}
+
+export interface IAgentTrace {
+  agent: string
+  status: 'completed' | 'no-data'
+  summary: string
+}
+
 export interface IResult {
   diseaseName: string
   confidence: number
   treatment: string
   citations: ICitation[]
+  contextSummary: IContextSummary
+  agentTrace: IAgentTrace[]
   status: 'pending' | 'processing' | 'completed' | 'need_review' | 'failed'
 }
 
@@ -107,6 +124,20 @@ const isNeedReview = computed(() => {
 
 const treatmentText = computed(() => markdownToPlainText(result.value?.treatment))
 
+const agentName = (agent: string) => {
+  const names: Record<string, string> = {
+    'weather-risk': '天气风险 Agent',
+    'growth-stage': '生育期 Agent',
+    'rag-evidence': 'RAG 知识 Agent',
+    treatment: '防治决策 Agent'
+  }
+  return names[agent] || agent
+}
+
+const agentStatusLabel = (status: IAgentTrace['status']) => {
+  return status === 'completed' ? '已完成' : '数据不足'
+}
+
 const reviewStatusLabel = (status?: string) => {
   const labels = {
     pending: '待审核',
@@ -160,6 +191,8 @@ const loadDetail = async (diagnosisId: string) => {
     confidence?: number
     treatment?: string
     citations?: Array<ICitation & { source?: string; content?: string }>
+    contextSummary?: IContextSummary
+    agentTrace?: IAgentTrace[]
   }>(`/diagnosis/result/${diagnosisId}`)
   result.value = {
     diseaseName: diseaseDisplayName(data.diseaseName),
@@ -169,6 +202,8 @@ const loadDetail = async (diagnosisId: string) => {
       docTitle: c.docTitle || c.source || '',
       snippet: c.snippet || c.content || ''
     })),
+    contextSummary: data.contextSummary || {},
+    agentTrace: data.agentTrace || [],
     status: data.status
   }
 }
@@ -359,6 +394,39 @@ onBeforeUnmount(releaseDiagnosisImage)
       </div>
 
       <!-- 引用来源卡片 -->
+      <!-- 诊断上下文与 Agent 决策轨迹 -->
+      <div v-if="Object.keys(result.contextSummary).length || result.agentTrace.length" class="agent-section">
+        <div class="agent-panel">
+          <div class="section-header">
+            <h3 class="section-title">诊断上下文</h3>
+          </div>
+          <div class="context-grid">
+            <div class="context-item"><span>作物</span><strong>{{ result.contextSummary.crop_name || '-' }}</strong></div>
+            <div class="context-item"><span>品种</span><strong>{{ result.contextSummary.variety || '-' }}</strong></div>
+            <div class="context-item"><span>生育期</span><strong>{{ result.contextSummary.growth_stage_label || '-' }}</strong></div>
+            <div class="context-item"><span>地块 / 农场</span><strong>{{ result.contextSummary.field_name || '-' }} / {{ result.contextSummary.farm_name || '-' }}</strong></div>
+            <div class="context-item"><span>天气数据</span><strong>未来 {{ result.contextSummary.weather_days ?? 0 }} 天</strong></div>
+          </div>
+        </div>
+        <div class="agent-panel">
+          <div class="section-header">
+            <h3 class="section-title">Agent 决策轨迹</h3>
+            <span class="section-count">共 {{ result.agentTrace.length }} 步</span>
+          </div>
+          <div class="trace-list">
+            <div v-for="trace in result.agentTrace" :key="trace.agent" class="trace-item">
+              <div class="trace-heading">
+                <strong>{{ agentName(trace.agent) }}</strong>
+                <ElTag :type="trace.status === 'completed' ? 'success' : 'info'" size="small">
+                  {{ agentStatusLabel(trace.status) }}
+                </ElTag>
+              </div>
+              <p>{{ trace.summary }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="citations-section">
         <div class="section-header">
           <h3 class="section-title">引用来源</h3>
@@ -615,6 +683,63 @@ onBeforeUnmount(releaseDiagnosisImage)
 }
 
 /* 引用来源 */
+/* Agent 可追踪信息 */
+.agent-section {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.agent-panel {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-xl);
+}
+
+.context-grid,
+.trace-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.context-item,
+.trace-item {
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-page);
+}
+
+.context-item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.context-item span,
+.trace-item p {
+  color: var(--color-text-secondary);
+}
+
+.context-item strong {
+  text-align: right;
+}
+
+.trace-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.trace-item p {
+  margin: var(--spacing-sm) 0 0;
+  line-height: 1.6;
+}
+
 .citations-section {
   background: var(--color-bg-card);
   border-radius: var(--radius-lg);
@@ -693,6 +818,10 @@ onBeforeUnmount(releaseDiagnosisImage)
 
 /* 响应式 */
 @media (max-width: 768px) {
+  .agent-section {
+    grid-template-columns: 1fr;
+  }
+
   .info-card {
     flex-direction: column;
     align-items: flex-start;

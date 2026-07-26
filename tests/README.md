@@ -3,25 +3,37 @@
 ## 测试层次
 
 | 层次 | 目录 | 工具 | 负责人 |
-|------|------|------|--------|
-| 前端单元测试 | `frontend/src/__tests__/` | Vitest | 前端 |
+|---|---|---|---|
+| 前端单元测试 | `frontend/src/views/__tests__/` 等 | Vitest + Vue Test Utils | 前端 |
 | 后端单元测试 | `backend/src/test/` | JUnit 5 + Mockito | 后端 |
-| AI 单元测试 | `ai-service/tests/` | Pytest | AI |
-| 接口集成测试 | `tests/integration/` | Pytest / REST Assured | 后端 |
-| E2E 测试 | `tests/e2e/` | Playwright | 前端 |
-| 性能测试 | `tests/performance/` | JMeter / Locust | 协作 |
+| AI 单元/API/RAG/Agent | `ai-service/tests/` | Pytest | AI |
+| 接口集成测试 | `tests/integration/` | Pytest + requests | 三方联调 |
+| 性能冒烟测试 | `tests/performance/` | Python + requests | 三方联调 |
+| 浏览器验收 | 正式截图见 `docs/test-evidence/` | Playwright/人工 | 三方联调 |
 
 ## 集成测试
-验证后端 API 和 AI 服务之间的交互、数据库读写、文件上传等。
-```bash
-cd tests/integration
-pip install pytest requests
-pytest -v
+
+服务启动后运行：
+
+```powershell
+ai-service\.venv\Scripts\python.exe -m pytest tests/integration/test_api.py -q
 ```
 
-## E2E 测试
-完整业务流程：登录 → 创建农场 → 上传图片 → 查看诊断 → 审核 → 任务完成。
-```bash
-cd tests/e2e
-npx playwright test
+覆盖知识、模型、农场、地块、种植周期、天气、图片诊断、RAG/Agent、审核、任务和反馈。
+
+## 性能冒烟测试
+
+```powershell
+ai-service\.venv\Scripts\python.exe tests/performance/smoke_test.py `
+  --requests 60 --concurrency 6 `
+  --output docs/test-evidence/performance-smoke-2026-07-26.json
+```
+
+可通过 `BASE_URL`、`PERF_USERNAME`、`PERF_PASSWORD` 环境变量切换环境和账号。此脚本用于课程验收，不替代生产级容量、稳定性和安全压测。
+
+## 完整端到端流程
+
+```text
+登录 → 创建农场/地块/种植周期 → 上传图片 → AI/RAG/Agent
+→ 农技审核 → 自动任务 → 农户完成与反馈
 ```

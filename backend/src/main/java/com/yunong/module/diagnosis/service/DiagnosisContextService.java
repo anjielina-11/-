@@ -90,13 +90,28 @@ public class DiagnosisContextService {
                 crop == null || crop.getName() == null ? "未知作物" : crop.getName(),
                 crop == null ? null : crop.getVariety(),
                 cycle.getPlantingDate(),
-                cycle.getGrowthStage()
+                normalizeGrowthStage(cycle.getGrowthStage())
         );
         var fieldContext = new DiagnosisContext.FieldContext(
                 field == null || field.getName() == null ? "未知地块" : field.getName(),
                 farm == null || farm.getName() == null ? "未知农场" : farm.getName()
         );
         return new DiagnosisContext(cropContext, fieldContext, loadWeather(farm == null ? null : farm.getId()));
+    }
+
+    private String normalizeGrowthStage(String stage) {
+        if (stage == null || stage.isBlank()) {
+            return null;
+        }
+        return switch (stage) {
+            case "\u64ad\u79cd\u671f" -> "sowing";
+            case "\u82d7\u671f" -> "seedling";
+            case "\u5206\u8616\u671f" -> "tillering";
+            case "\u5f00\u82b1\u671f" -> "flowering";
+            case "\u7ed3\u679c\u671f" -> "fruiting";
+            case "\u6210\u719f\u671f" -> "maturity";
+            default -> stage;
+        };
     }
 
     private List<DiagnosisContext.WeatherForecast> loadWeather(String farmId) {

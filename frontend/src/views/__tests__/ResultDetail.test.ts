@@ -9,6 +9,17 @@ describe('ResultDetail history list', () => {
     expect(readSource()).toContain('formatDateTime(row.createdAt)')
   })
 
+  it('renders diagnosis context and the multi-agent decision trace', () => {
+    const source = readSource()
+
+    expect(source).toContain('contextSummary')
+    expect(source).toContain('agentTrace')
+    expect(source).toContain('诊断上下文')
+    expect(source).toContain('Agent 决策轨迹')
+    expect(source).toContain('agentName')
+    expect(source).toContain('agentStatusLabel')
+  })
+
   it('loads and renders the uploaded disease image in result details', () => {
     const source = readSource()
 

@@ -73,7 +73,7 @@ class DiagnosisContextServiceTest {
         cycle.setCropId("crop-1");
         cycle.setFieldId("field-1");
         cycle.setPlantingDate(LocalDate.of(2026, 7, 1));
-        cycle.setGrowthStage("tillering");
+        cycle.setGrowthStage("\u5206\u8616\u671f");
         when(cycleMapper.selectById("cycle-1")).thenReturn(cycle);
 
         var crop = new Crop();

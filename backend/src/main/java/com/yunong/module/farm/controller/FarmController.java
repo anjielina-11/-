@@ -45,7 +45,7 @@ public class FarmController {
 
     @GetMapping("/accessible")
     @PreAuthorize("hasAnyRole('COOP_MANAGER', 'ADMIN')")
-    @Operation(summary = "???????????")
+    @Operation(summary = "可访问农场列表")
     public R<PageResult<Farm>> listAccessible(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "100") int size) {

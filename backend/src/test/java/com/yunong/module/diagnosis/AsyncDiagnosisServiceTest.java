@@ -86,8 +86,10 @@ class AsyncDiagnosisServiceTest {
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.crop.name").value("水稻"))
+                .andExpect(jsonPath("$.crop.planting_date").value("2026-07-01"))
                 .andExpect(jsonPath("$.crop.growth_stage").value("tillering"))
                 .andExpect(jsonPath("$.field.farm_name").value("验收农场"))
+                .andExpect(jsonPath("$.weather_forecast[0].date").value("2026-07-26"))
                 .andExpect(jsonPath("$.weather_forecast[0].humidity").value(86))
                 .andExpect(jsonPath("$.citations[0].docTitle").value("稻瘟病防治"))
                 .andRespond(withSuccess("{\"advice\":\"建议文本\",\"references\":[{\"docTitle\":\"稻瘟病防治\",\"snippet\":\"及时用药\"}],\"context_summary\":{\"crop_name\":\"水稻\"},\"agent_trace\":[{\"agent\":\"weather-risk\",\"status\":\"completed\",\"summary\":\"高湿\"}]}", MediaType.APPLICATION_JSON));

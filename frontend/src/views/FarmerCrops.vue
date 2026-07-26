@@ -14,6 +14,7 @@ interface Crop {
   fieldName: string
   plantedDate: string
   expectedHarvestDate: string
+  growthStage: string
   status: '生长中' | '待收获' | '已收获'
   area: number
   variety: string
@@ -26,6 +27,7 @@ interface PlantingCycle {
   fieldId: string
   plantingDate?: string
   expectedHarvestDate?: string
+  growthStage?: string
   status: string
   areaMu?: number
   remark?: string
@@ -65,6 +67,14 @@ interface FieldOption {
 const crops = ref<Crop[]>([])
 const cropOptions = ref<CropOption[]>([])
 const fieldOptions = ref<FieldOption[]>([])
+const growthStageOptions = [
+  { label: '播种期', value: 'sowing' },
+  { label: '苗期', value: 'seedling' },
+  { label: '分蘖期', value: 'tillering' },
+  { label: '开花期', value: 'flowering' },
+  { label: '结果期', value: 'fruiting' },
+  { label: '成熟期', value: 'maturity' }
+]
 const dialogVisible = ref(false)
 const cropDialogVisible = ref(false)
 const cropSubmitting = ref(false)
@@ -83,6 +93,7 @@ const formData = ref<Crop>({
   fieldName: '',
   plantedDate: '',
   expectedHarvestDate: '',
+  growthStage: 'seedling',
   status: '生长中',
   area: 0,
   variety: ''
@@ -132,6 +143,7 @@ const loadCrops = async () => {
         fieldName: field ? `${field.farmName} / ${field.name}` : '未知地块',
         plantedDate: cycle.plantingDate || '-',
         expectedHarvestDate: cycle.expectedHarvestDate || '-',
+        growthStage: cycle.growthStage || '',
         status: cycleStatusLabel(cycle.status),
         area: Number(cycle.areaMu) || 0,
         variety: crop?.variety || '-',
@@ -274,6 +286,7 @@ const handleAdd = () => {
     fieldName: '',
     plantedDate: '',
     expectedHarvestDate: '',
+    growthStage: 'seedling',
     status: '生长中',
     area: 0,
     variety: ''
@@ -305,6 +318,7 @@ const handleSubmit = async () => {
         cropId: formData.value.cropId,
         plantingDate: formData.value.plantedDate,
         expectedHarvestDate: formData.value.expectedHarvestDate,
+        growthStage: formData.value.growthStage,
         status: formData.value.status === '生长中' ? 'active' : formData.value.status === '待收获' ? 'pending_harvest' : 'completed',
         areaMu: formData.value.area,
         remark: formData.value.notes
@@ -316,6 +330,7 @@ const handleSubmit = async () => {
         fieldId: formData.value.fieldId,
         plantingDate: formData.value.plantedDate,
         expectedHarvestDate: formData.value.expectedHarvestDate,
+        growthStage: formData.value.growthStage,
         areaMu: formData.value.area,
         remark: formData.value.notes
       })
@@ -477,6 +492,16 @@ onUnmounted(() => {
         <ElFormItem label="所属地块" required>
           <ElSelect v-model="formData.fieldId" placeholder="请选择地块" style="width: 100%" :disabled="editMode">
             <ElOption v-for="field in fieldOptions" :key="field.id" :label="`${field.farmName} / ${field.name}`" :value="field.id" />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem label="生育期" required>
+          <ElSelect v-model="formData.growthStage" placeholder="请选择生育期" style="width: 100%">
+            <ElOption
+              v-for="stage in growthStageOptions"
+              :key="stage.value"
+              :label="stage.label"
+              :value="stage.value"
+            />
           </ElSelect>
         </ElFormItem>
         <ElFormItem label="种植日期" required>

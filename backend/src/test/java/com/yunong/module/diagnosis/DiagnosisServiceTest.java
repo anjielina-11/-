@@ -26,8 +26,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.lang.reflect.Method;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -140,7 +143,12 @@ class DiagnosisServiceTest {
         observation.setUserId("farmer-1");
         mockRecord.setObservationId("obs-1");
         mockRecord.setAiResult("""
-                {"treatment":"建议文本","citations":[{"source":"knowledge_docs/rice.md","content":"稻瘟病防治摘要","score":0.2}]}
+                {
+                  "treatment":"建议文本",
+                  "citations":[{"source":"knowledge_docs/rice.md","content":"稻瘟病防治摘要","score":0.2}],
+                  "contextSummary":{"crop_name":"水稻","growth_stage_label":"分蘖期","weather_days":7},
+                  "agentTrace":[{"agent":"weather-risk","status":"completed","summary":"未来七天有降雨风险"}]
+                }
                 """);
         when(diagnosisRecordMapper.selectById("test-uuid-001")).thenReturn(mockRecord);
         when(observationMapper.selectById("obs-1")).thenReturn(observation);
@@ -149,6 +157,9 @@ class DiagnosisServiceTest {
 
         assertEquals("knowledge_docs/rice.md", result.getCitations().getFirst().getDocTitle());
         assertEquals("稻瘟病防治摘要", result.getCitations().getFirst().getSnippet());
+        assertEquals("水稻", result.getContextSummary().get("crop_name"));
+        assertEquals("分蘖期", result.getContextSummary().get("growth_stage_label"));
+        assertEquals("weather-risk", result.getAgentTrace().getFirst().get("agent"));
     }
 
     @Test
@@ -180,6 +191,30 @@ class DiagnosisServiceTest {
                 () -> diagnosisService.upload(null, "cycle-1", "test", "farmer-2"));
 
         assertEquals(ErrorCode.FORBIDDEN.getCode(), error.getCode());
+    }
+
+    @Test
+    @DisplayName("上传诊断只接受图片文件")
+    void shouldRejectUnsupportedUploadType() {
+        var cycle = new PlantingCycle();
+        cycle.setId("cycle-1");
+        cycle.setCreatedBy("farmer-1");
+        when(plantingCycleMapper.selectById("cycle-1")).thenReturn(cycle);
+        var file = new MockMultipartFile("file", "note.txt", "text/plain", "not-an-image".getBytes());
+
+        var error = assertThrows(BusinessException.class,
+                () -> diagnosisService.upload(file, "cycle-1", "test", "farmer-1"));
+
+        assertEquals(ErrorCode.FILE_TYPE_NOT_SUPPORTED.getCode(), error.getCode());
+    }
+
+    @Test
+    @DisplayName("人工审核应在事务中更新诊断并生成任务")
+    void reviewShouldBeTransactional() throws NoSuchMethodException {
+        Method review = DiagnosisService.class.getMethod(
+                "review", String.class, String.class, String.class, String.class);
+
+        assertNotNull(review.getAnnotation(Transactional.class));
     }
 
     @Test
@@ -268,7 +303,7 @@ class DiagnosisServiceTest {
     }
 
     @Test
-    @DisplayName("???????????????")
+    @DisplayName("农技人员可以读取受保护的诊断原图")
     void shouldReadProtectedDiagnosisImage() throws Exception {
         mockRecord.setImageUrl("diagnosis/sample.jpg");
         when(diagnosisRecordMapper.selectById("test-uuid-001")).thenReturn(mockRecord);
@@ -281,6 +316,34 @@ class DiagnosisServiceTest {
 
         assertArrayEquals(new byte[]{1, 2, 3}, result.content());
         assertEquals("image/jpeg", result.contentType());
+    }
+
+    @Test
+    @DisplayName("诊断记录缺少图片路径时返回可读错误")
+    void shouldExplainMissingDiagnosisImagePath() {
+        mockRecord.setImageUrl(null);
+        when(diagnosisRecordMapper.selectById("test-uuid-001")).thenReturn(mockRecord);
+
+        var error = assertThrows(BusinessException.class,
+                () -> diagnosisService.getImage("test-uuid-001", "tech-1", true));
+
+        assertEquals(ErrorCode.NOT_FOUND.getCode(), error.getCode());
+        assertTrue(error.getMessage().contains("诊断原图路径为空"));
+    }
+
+    @Test
+    @DisplayName("对象存储读取失败时返回可读错误")
+    void shouldExplainDiagnosisImageStorageFailure() throws Exception {
+        mockRecord.setImageUrl("diagnosis/missing.jpg");
+        when(diagnosisRecordMapper.selectById("test-uuid-001")).thenReturn(mockRecord);
+        when(minioConfig.getBucket()).thenReturn("yunnong");
+        when(minioClient.getObject(any())).thenThrow(new RuntimeException("missing"));
+
+        var error = assertThrows(BusinessException.class,
+                () -> diagnosisService.getImage("test-uuid-001", "tech-1", true));
+
+        assertEquals(ErrorCode.MINIO_ERROR.getCode(), error.getCode());
+        assertTrue(error.getMessage().contains("读取诊断原图失败"));
     }
 
 }

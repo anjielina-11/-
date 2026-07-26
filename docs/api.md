@@ -1,4 +1,4 @@
-﻿# API 接口索引
+# API 接口索引
 
 ## 1. 统一约定
 
@@ -108,3 +108,55 @@ Backend 在 Compose 内通过 `http://ai-service:8000` 调用；浏览器调试�
 | 500 | 未处理的服务异常 |
 
 接口字段以运行中的 Swagger/OpenAPI 为最终准确信息；本文件负责提供演示和联调索引，避免复制大量容易过期的请求/响应示例。
+
+## 5. 关键请求参数
+
+| 接口 | 参数位置 | 必填参数 | 可选参数/说明 |
+|---|---|---|---|
+| `POST /api/v1/auth/login` | JSON Body | `username`、`password` | 返回 `token`、`refreshToken` 和用户信息 |
+| `POST /api/v1/farms` | JSON Body | `name` | 可含地址、经纬度、面积等农场信息 |
+| `POST /api/v1/farms/{farmId}/fields` | Path + JSON Body | `farmId`、`name` | `area`、位置、土壤类型等 |
+| `POST /api/v1/planting-cycles` | JSON Body | `fieldId`、`cropId`、`plantingDate`、`growthStage` | 生育期使用 `sowing/seedling/tillering/flowering/fruiting/maturity` |
+| `POST /api/v1/diagnosis/upload` | multipart/form-data | `file`、`cycleId` | `description`；支持 JPG/PNG/WebP/GIF，单文件最大 20MB |
+| `GET /api/v1/diagnosis` | Query | 无 | `page`、`size`、`reviewStatus`、`diseaseName` |
+| `POST /api/v1/diagnosis/{id}/review` | Path + Query | `id`、`status` | `status=approved/rejected`，`comment` 可选 |
+| `PUT /api/v1/tasks/{id}/status` | Path + Query/Body | `id`、目标状态 | 状态必须满足后端流转规则 |
+| `POST /api/v1/weather/fetch` | Query/Body | 目标农场或位置参数 | 手动刷新当天起未来七天天气 |
+| `POST /api/v1/knowledge/documents` | JSON Body | `title`、`content` | `category`、`source`、`version`、`status` |
+| `POST /api/v1/model-versions/{id}/deploy` | Path | `id` | 仅管理员；校验模型路径、类别映射和类别数 |
+
+### 诊断结果核心字段
+
+`GET /api/v1/diagnosis/result/{id}` 的 `data` 包含：
+
+```json
+{
+  "status": "need_review",
+  "diseaseName": "稻瘟病",
+  "confidence": 0.92,
+  "treatment": "防治建议",
+  "citations": [{"docTitle": "规范名称", "snippet": "引用片段"}],
+  "contextSummary": {
+    "crop_name": "水稻",
+    "growth_stage_label": "分蘖期",
+    "weather_days": 7
+  },
+  "agentTrace": [
+    {"agent": "weather-risk", "status": "completed", "summary": "天气风险结论"}
+  ]
+}
+```
+
+## 6. 鉴权矩阵
+
+| 资源 | Farmer | Technician | Coop Manager | Admin |
+|---|---:|---:|---:|---:|
+| 本人农场/地块/种植周期 | 读写本人 | 按授权读取 | 查看可访问范围 | 全局管理 |
+| 图片上报与本人诊断 | 是 | 是 | 是 | 是 |
+| 诊断人工审核 | 否 | 是 | 否 | 是 |
+| 知识文档 | 否 | 维护 | 查询/创建 | 完整管理与同步 |
+| 模型版本 | 查询 | 登记/修改 | 查询 | 部署/删除/完整管理 |
+| 用户角色与状态 | 否 | 否 | 否 | 是 |
+| 监控指标 | 否 | 否 | 是 | 是 |
+
+角色鉴权由 Spring Security 和 `@PreAuthorize` 实现，农场、诊断、图片和任务等用户资源还在 Service 层校验所有权。所有字段约束以运行中的 Swagger/OpenAPI 为最终依据。
