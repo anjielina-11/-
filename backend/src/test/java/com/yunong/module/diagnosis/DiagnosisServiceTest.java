@@ -6,11 +6,19 @@ import com.yunong.module.diagnosis.entity.Observation;
 import com.yunong.module.diagnosis.mapper.ObservationMapper;
 import com.yunong.module.crop.entity.PlantingCycle;
 import com.yunong.module.crop.mapper.PlantingCycleMapper;
+import com.yunong.module.auth.entity.User;
+import com.yunong.module.auth.mapper.UserMapper;
+import com.yunong.module.farm.entity.Field;
+import com.yunong.module.farm.mapper.FieldMapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yunong.module.task.service.TaskService;
 import com.yunong.exception.BusinessException;
 import com.yunong.exception.ErrorCode;
 import com.yunong.module.diagnosis.mapper.DiagnosisRecordMapper;
 import com.yunong.module.diagnosis.service.DiagnosisService;
+import com.yunong.config.MinioConfig;
+import io.minio.GetObjectResponse;
+import io.minio.MinioClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +30,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
@@ -41,6 +51,18 @@ class DiagnosisServiceTest {
 
     @Mock
     private PlantingCycleMapper plantingCycleMapper;
+
+    @Mock
+    private UserMapper userMapper;
+
+    @Mock
+    private FieldMapper fieldMapper;
+
+    @Mock
+    private MinioClient minioClient;
+
+    @Mock
+    private MinioConfig minioConfig;
 
     @InjectMocks
     private DiagnosisService diagnosisService;
@@ -208,6 +230,57 @@ class DiagnosisServiceTest {
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq("farmer-1"),
                 org.mockito.ArgumentMatchers.eq("cycle-1"));
+    }
+
+
+    @Test
+    @DisplayName("审核列表应包含农户与地块名称")
+    void shouldEnrichDiagnosisListWithFarmerAndField() {
+        mockRecord.setObservationId("obs-1");
+        var page = new Page<DiagnosisRecord>(1, 10);
+        page.setRecords(java.util.List.of(mockRecord));
+        page.setTotal(1);
+        when(diagnosisRecordMapper.selectPage(org.mockito.ArgumentMatchers.any(Page.class),
+                org.mockito.ArgumentMatchers.any())).thenReturn(page);
+
+        var observation = new Observation();
+        observation.setId("obs-1");
+        observation.setUserId("farmer-1");
+        observation.setCycleId("cycle-1");
+        when(observationMapper.selectBatchIds(java.util.List.of("obs-1"))).thenReturn(java.util.List.of(observation));
+        var user = new User();
+        user.setId("farmer-1");
+        user.setRealName("王示范农户");
+        when(userMapper.selectBatchIds(java.util.List.of("farmer-1"))).thenReturn(java.util.List.of(user));
+        var cycle = new PlantingCycle();
+        cycle.setId("cycle-1");
+        cycle.setFieldId("field-1");
+        when(plantingCycleMapper.selectBatchIds(java.util.List.of("cycle-1"))).thenReturn(java.util.List.of(cycle));
+        var field = new Field();
+        field.setId("field-1");
+        field.setName("水稻试验田");
+        when(fieldMapper.selectBatchIds(java.util.List.of("field-1"))).thenReturn(java.util.List.of(field));
+
+        var result = diagnosisService.list(1, 10, null, null, "tech-1", true);
+
+        assertEquals("王示范农户", result.getList().getFirst().getFarmerName());
+        assertEquals("水稻试验田", result.getList().getFirst().getFieldName());
+    }
+
+    @Test
+    @DisplayName("???????????????")
+    void shouldReadProtectedDiagnosisImage() throws Exception {
+        mockRecord.setImageUrl("diagnosis/sample.jpg");
+        when(diagnosisRecordMapper.selectById("test-uuid-001")).thenReturn(mockRecord);
+        when(minioConfig.getBucket()).thenReturn("yunnong");
+        var stream = mock(GetObjectResponse.class);
+        when(minioClient.getObject(any())).thenReturn(stream);
+        when(stream.readAllBytes()).thenReturn(new byte[]{1, 2, 3});
+
+        var result = diagnosisService.getImage("test-uuid-001", "tech-1", true);
+
+        assertArrayEquals(new byte[]{1, 2, 3}, result.content());
+        assertEquals("image/jpeg", result.contentType());
     }
 
 }

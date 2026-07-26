@@ -7,10 +7,6 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, models
 import json
 import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BATCH_SIZE = 16
 MODEL_PATH = os.path.join(BASE_DIR, 'best_model.pth')

@@ -3,6 +3,8 @@ import {
   cycleStatusLabel,
   diagnosisProgress,
   diseaseDisplayName,
+  formatDateTime,
+  formatDiseaseTaskTitle,
   markdownToPlainText,
   normalizeReviewStatus,
   parseTags,
@@ -43,6 +45,13 @@ describe('domain API mappers', () => {
     expect(diseaseDisplayName('rice_blast')).toBe('水稻稻瘟病')
     expect(diseaseDisplayName('unknown_code')).toBe('unknown_code')
     expect(diseaseDisplayName()).toBe('未知病害')
+  })
+
+
+  it('formats audit timestamps and disease task titles for display', () => {
+    expect(formatDateTime('2026-07-25T14:03:09')).toBe('2026-07-25 14:03')
+    expect(formatDateTime('')).toBe('-')
+    expect(formatDiseaseTaskTitle('防治: citrus_canker')).toBe('防治：柑橘溃疡病')
   })
 
   it('renders treatment markdown as readable plain text', () => {

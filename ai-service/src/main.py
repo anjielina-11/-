@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,8 +13,20 @@ from .models.schemas import HealthResponse
 
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    try:
+        chunks_count = RAGService.ensure_initialized(settings.RAG_KNOWLEDGE_DOCS_PATH)
+        if chunks_count:
+            logger.info("Initialized RAG knowledge base with %s chunks", chunks_count)
+    except Exception:
+        logger.exception("Failed to initialize RAG knowledge base")
+    yield
+
 app = FastAPI(
     title=settings.APP_NAME,
+    lifespan=lifespan,
     version=settings.APP_VERSION,
     description="""农业AI服务 - 提供作物病害诊断、天气查询和知识库检索等功能。
 
@@ -65,15 +78,6 @@ app.include_router(diagnosis_router)
 app.include_router(weather_router)
 app.include_router(rag_router)
 
-
-@app.on_event("startup")
-async def initialize_knowledge_base():
-    try:
-        chunks_count = RAGService.ensure_initialized("knowledge_docs")
-        if chunks_count:
-            logger.info("Initialized RAG knowledge base with %s chunks", chunks_count)
-    except Exception:
-        logger.exception("Failed to initialize RAG knowledge base")
 
 
 @app.get(

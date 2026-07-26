@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import numpy as np
 from PIL import Image
 
@@ -371,7 +372,8 @@ CLASS_GENERATORS = {
 }
 
 
-def generate_dataset(output_dir="data"):
+def generate_dataset(output_dir=None):
+    output_dir = Path(output_dir) if output_dir else Path(__file__).resolve().parents[1] / "data"
     os.makedirs(output_dir, exist_ok=True)
     
     for disease_class in DISEASE_CLASSES:

@@ -86,3 +86,16 @@ export const percentToRatio = (value?: number | string | null): number => {
   const numberValue = Number(value) || 0
   return Number((numberValue > 1 ? numberValue / 100 : numberValue).toFixed(4))
 }
+
+
+export const formatDateTime = (value?: string | null): string => {
+  if (!value) return '-'
+  const normalized = value.replace('T', ' ')
+  return normalized.length >= 16 ? normalized.slice(0, 16) : normalized
+}
+
+export const formatDiseaseTaskTitle = (title?: string | null): string => {
+  if (!title) return '未命名任务'
+  const match = title.match(/^防治\s*[:：]\s*(.+)$/i)
+  return match ? `防治：${diseaseDisplayName(match[1].trim())}` : title
+}

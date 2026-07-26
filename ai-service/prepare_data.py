@@ -1,10 +1,9 @@
 """
-数据准备脚本：将 d:\学习\data1\病虫害\images\ 数据集划分为训练集和验证集
+数据准备脚本：将指定图片数据集划分为训练集和验证集
 """
-import os
 import random
 import shutil
-from pathlib import Path
+from src.core.paths import AI_SERVICE_ROOT, resolve_service_path
 
 
 def prepare_dataset(
@@ -18,7 +17,7 @@ def prepare_dataset(
     将源数据集划分为训练集和验证集
     
     Args:
-        source_dir: 源数据目录（如 d:\学习\data1\病虫害\images）
+        source_dir: 源数据目录
         target_dir: 目标数据目录
         train_ratio: 训练集比例
         seed: 随机种子
@@ -26,9 +25,20 @@ def prepare_dataset(
     """
     random.seed(seed)
     
-    source_path = Path(source_dir)
-    target_path = Path(target_dir)
-    
+    source_path = resolve_service_path(source_dir)
+    target_path = resolve_service_path(target_dir)
+
+    if not source_path.is_dir():
+        raise FileNotFoundError(f"源数据目录不存在: {source_path}")
+    source_resolved = source_path.resolve()
+    target_resolved = target_path.resolve()
+    if (
+        source_resolved == target_resolved
+        or source_resolved in target_resolved.parents
+        or target_resolved in source_resolved.parents
+    ):
+        raise ValueError("源数据目录与目标目录不能相同或互相包含")
+
     train_path = target_path / "train"
     val_path = target_path / "val"
     
@@ -114,15 +124,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="划分数据集")
     parser.add_argument(
         "--source-dir",
-        type=str,
-        default=r"d:\学习\data1\病虫害\images",
-        help="源数据目录",
+        type=resolve_service_path,
+        required=True,
+        help="源数据目录（相对路径从 ai-service 目录解析）",
     )
     parser.add_argument(
         "--target-dir",
-        type=str,
-        default=r"d:\下载\-\ai-service\data",
-        help="目标数据目录",
+        type=resolve_service_path,
+        default=AI_SERVICE_ROOT / "data",
+        help="目标数据目录（默认 ai-service/data）",
     )
     parser.add_argument(
         "--train-ratio",

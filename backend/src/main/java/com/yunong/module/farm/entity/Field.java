@@ -17,7 +17,7 @@ public class Field extends BaseEntity {
     private String name;
     private java.math.BigDecimal areaMu;
     private String soilType;
-    private String location;   // PostGIS GEOMETRY(Point, 4326) — TODO: PostGIS TypeHandler
-    private String boundary;   // PostGIS GEOMETRY(Polygon, 4326) — TODO: PostGIS TypeHandler
+    private String location;   // PostGIS GEOMETRY(Point, 4326)，当前接口按字符串表示
+    private String boundary;   // PostGIS GEOMETRY(Polygon, 4326)，当前接口按字符串表示
     private String remark;
 }

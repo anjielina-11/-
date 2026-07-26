@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { ElCard, ElTable, ElTableColumn, ElDialog, ElButton, ElTag, ElMessage } from 'element-plus'
-import * as echarts from 'echarts'
+import { ElCard, ElTable, ElTableColumn, ElDialog, ElButton, ElTag, ElMessage, ElInput } from 'element-plus'
+import * as echarts from '@/utils/echarts'
 import request from '@/utils/request'
+import { formatDiseaseTaskTitle } from '@/utils/domainMappers'
 
 interface Task {
   id: string
@@ -11,15 +12,18 @@ interface Task {
   dueDate: string
   status: '待执行' | '执行中' | '已完成'
   description?: string
+  remark?: string
 }
 
 interface FarmingTask {
   id: string
   title: string
   cycleId?: string
+  fieldName?: string
   scheduledDate?: string
   status: string
   description?: string
+  remark?: string
 }
 
 interface PageResult<T> {
@@ -30,6 +34,8 @@ interface PageResult<T> {
 const tasks = ref<Task[]>([])
 const dialogVisible = ref(false)
 const selectedTask = ref<Task | null>(null)
+const feedbackText = ref('')
+const submitting = ref(false)
 const chartRef = ref<HTMLDivElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
 
@@ -56,11 +62,12 @@ const loadTasks = async () => {
     const response = await request.get<PageResult<FarmingTask>>('/tasks', { params: { size: 100 } })
     tasks.value = response.list.map(task => ({
       id: task.id,
-      title: task.title,
-      fieldName: task.cycleId ? `周期 ${task.cycleId.slice(0, 8)}` : '未关联种植周期',
+      title: formatDiseaseTaskTitle(task.title),
+      fieldName: task.fieldName || '未关联地块',
       dueDate: task.scheduledDate ?? '-',
       status: task.status === 'pending' ? '待执行' : task.status === 'in_progress' ? '执行中' : '已完成',
-      description: task.description
+      description: task.description,
+      remark: task.remark
     }))
     updateChart()
   } catch (error) {
@@ -170,24 +177,58 @@ const updateChart = () => {
 
 const handleRowClick = (row: Task) => {
   selectedTask.value = row
+  feedbackText.value = row.remark ?? ''
   dialogVisible.value = true
 }
 
-const markAsCompleted = async () => {
+const updateSelectedTask = (updates: Partial<Task>) => {
   if (!selectedTask.value) return
+  const index = tasks.value.findIndex(task => task.id === selectedTask.value!.id)
+  if (index !== -1) Object.assign(tasks.value[index], updates)
+  Object.assign(selectedTask.value, updates)
+}
+
+const startTask = async () => {
+  if (!selectedTask.value || submitting.value) return
+  submitting.value = true
   try {
     await request.put(`/tasks/${selectedTask.value.id}/status`, undefined, {
-      params: { status: 'completed' }
+      params: { status: 'in_progress' }
     })
-    const index = tasks.value.findIndex(t => t.id === selectedTask.value!.id)
-    if (index !== -1) {
-      tasks.value[index].status = '已完成'
-      selectedTask.value!.status = '已完成'
-      ElMessage.success('任务已标记为完成')
-      updateChart()
-    }
+    updateSelectedTask({ status: '执行中' })
+    updateChart()
+    ElMessage.success('任务已开始执行，请完成后填写处置效果反馈')
   } catch (error) {
-    ElMessage.error('更新任务状态失败')
+    ElMessage.error('开始任务失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
+const submitFeedbackAndComplete = async () => {
+  if (!selectedTask.value || submitting.value) return
+  const feedback = feedbackText.value.trim()
+  if (!feedback) {
+    ElMessage.warning('请填写处置效果反馈')
+    return
+  }
+
+  const wasCompleted = selectedTask.value.status === '已完成'
+  submitting.value = true
+  try {
+    await request.put(`/tasks/${selectedTask.value.id}`, { remark: feedback })
+    if (!wasCompleted) {
+      await request.put(`/tasks/${selectedTask.value.id}/status`, undefined, {
+        params: { status: 'completed' }
+      })
+    }
+    updateSelectedTask({ remark: feedback, status: '已完成' })
+    updateChart()
+    ElMessage.success(wasCompleted ? '处置反馈已保存' : '反馈已提交，任务已完成')
+  } catch (error) {
+    ElMessage.error('提交处置反馈失败，请稍后重试')
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -332,24 +373,50 @@ onUnmounted(() => {
           <div class="detail-section-title">任务描述</div>
           <div class="detail-desc">{{ selectedTask.description }}</div>
         </div>
+
+        <div class="detail-section feedback-section">
+          <div class="detail-section-title">处置效果反馈</div>
+          <ElInput
+            v-model="feedbackText"
+            type="textarea"
+            :rows="4"
+            maxlength="500"
+            show-word-limit
+            :disabled="selectedTask.status === '待执行'"
+            placeholder="请填写实际处置措施和效果，例如：已按防治建议处理，病斑扩散得到控制。"
+          />
+          <div v-if="selectedTask.status === '待执行'" class="feedback-tip">
+            请先开始执行任务，再填写处置效果反馈。
+          </div>
+        </div>
       </div>
 
       <template #footer>
         <div class="dialog-footer">
           <ElButton @click="dialogVisible = false">关闭</ElButton>
           <ElButton
-            v-if="selectedTask && selectedTask.status !== '已完成'"
+            v-if="selectedTask?.status === '待执行'"
             type="primary"
-            @click="markAsCompleted"
+            :loading="submitting"
+            @click="startTask"
           >
-            标记为已完成
+            开始执行
           </ElButton>
           <ElButton
-            v-else
+            v-else-if="selectedTask?.status === '执行中'"
             type="success"
-            disabled
+            :loading="submitting"
+            @click="submitFeedbackAndComplete"
           >
-            已完成
+            提交反馈并完成
+          </ElButton>
+          <ElButton
+            v-else-if="selectedTask?.status === '已完成'"
+            type="primary"
+            :loading="submitting"
+            @click="submitFeedbackAndComplete"
+          >
+            保存反馈
           </ElButton>
         </div>
       </template>
@@ -596,7 +663,21 @@ onUnmounted(() => {
   font-size: var(--font-size-lg);
 }
 
+.feedback-section {
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.feedback-tip {
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
 .detail-desc {
+  max-height: 260px;
+  overflow-y: auto;
+  white-space: pre-wrap;
   font-size: var(--font-size-sm);
   color: var(--color-text-regular);
   line-height: 1.6;

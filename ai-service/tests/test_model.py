@@ -1,11 +1,14 @@
-import os
+from pathlib import Path
+
+import pytest
 import torch
 import torch.nn as nn
 from torchvision import transforms, models
 from PIL import Image
 
-MODEL_PATH = "best_model.pth"
-CLASS_TO_IDX_PATH = "class_to_idx.pth"
+AI_SERVICE_ROOT = Path(__file__).resolve().parents[1]
+MODEL_PATH = AI_SERVICE_ROOT / "best_model.pth"
+CLASS_TO_IDX_PATH = AI_SERVICE_ROOT / "class_to_idx.pth"
 THRESHOLD = 0.6
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -30,12 +33,12 @@ transform = transforms.Compose([
 def predict(image_path):
     image = Image.open(image_path).convert("RGB")
     image_tensor = transform(image).unsqueeze(0).to(DEVICE)
-    
+
     with torch.no_grad():
         outputs = model(image_tensor)
         probabilities = torch.softmax(outputs, dim=1)
         max_prob, predicted_idx = torch.max(probabilities, dim=1)
-    
+
     confidence = max_prob.item()
     disease_name = idx_to_class[predicted_idx.item()]
     return disease_name, confidence
@@ -54,9 +57,12 @@ test_images = [
 ]
 
 def test_available_model_samples():
-    available = [(path, expected) for path, expected in test_images if os.path.exists(path)]
+    available = [
+        (AI_SERVICE_ROOT / path, expected)
+        for path, expected in test_images
+        if (AI_SERVICE_ROOT / path).exists()
+    ]
     if not available:
-        import pytest
         pytest.skip("No evaluation images available")
 
     correct = 0

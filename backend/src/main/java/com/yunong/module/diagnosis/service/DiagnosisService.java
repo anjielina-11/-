@@ -10,12 +10,18 @@ import com.yunong.config.MinioConfig;
 import com.yunong.exception.BusinessException;
 import com.yunong.exception.ErrorCode;
 import com.yunong.module.diagnosis.dto.DiagnosisResultResponse;
+import com.yunong.module.auth.entity.User;
+import com.yunong.module.auth.mapper.UserMapper;
+import com.yunong.module.crop.entity.PlantingCycle;
+import com.yunong.module.farm.entity.Field;
+import com.yunong.module.farm.mapper.FieldMapper;
 import com.yunong.module.diagnosis.entity.DiagnosisRecord;
 import com.yunong.module.diagnosis.entity.Observation;
 import com.yunong.module.diagnosis.mapper.DiagnosisRecordMapper;
 import com.yunong.module.diagnosis.mapper.ObservationMapper;
 import com.yunong.module.crop.mapper.PlantingCycleMapper;
 import com.yunong.module.task.service.TaskService;
+import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +42,8 @@ public class DiagnosisService {
     private final DiagnosisRecordMapper drMapper;
     private final ObservationMapper obsMapper;
     private final PlantingCycleMapper plantingCycleMapper;
+    private final UserMapper userMapper;
+    private final FieldMapper fieldMapper;
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
     private final AsyncDiagnosisService asyncDiagnosisService;
@@ -95,6 +103,32 @@ public class DiagnosisService {
         return dr;
     }
 
+    public DiagnosisImage getImage(String id, String userId, boolean privileged) {
+        var dr = getById(id, userId, privileged);
+        if (CharSequenceUtil.isBlank(dr.getImageUrl())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "???????");
+        }
+        try (var object = minioClient.getObject(GetObjectArgs.builder()
+                .bucket(minioConfig.getBucket())
+                .object(dr.getImageUrl())
+                .build())) {
+            return new DiagnosisImage(object.readAllBytes(), contentType(dr.getImageUrl()));
+        } catch (Exception e) {
+            log.error("????????: id={}, object={}", id, dr.getImageUrl(), e);
+            throw new BusinessException(ErrorCode.MINIO_ERROR, "????????");
+        }
+    }
+
+    private String contentType(String objectName) {
+        var lower = objectName.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".gif")) return "image/gif";
+        return "image/jpeg";
+    }
+
+    public record DiagnosisImage(byte[] content, String contentType) {}
+
     public PageResult<DiagnosisRecord> list(int page, int size, String reviewStatus, String diseaseName,
                                             String userId, boolean privileged) {
         var wrapper = new LambdaQueryWrapper<DiagnosisRecord>();
@@ -109,7 +143,45 @@ public class DiagnosisService {
         if (diseaseName != null) wrapper.eq(DiagnosisRecord::getDiseaseName, diseaseName);
         wrapper.orderByDesc(DiagnosisRecord::getCreatedAt);
         var result = drMapper.selectPage(new Page<>(page, size), wrapper);
+        enrichDisplayFields(result.getRecords());
         return PageResult.of(result.getRecords(), result.getTotal());
+    }
+
+    private void enrichDisplayFields(List<DiagnosisRecord> records) {
+        if (records.isEmpty()) return;
+
+        var observationIds = records.stream().map(DiagnosisRecord::getObservationId)
+                .filter(Objects::nonNull).distinct().toList();
+        if (observationIds.isEmpty()) return;
+        Map<String, Observation> observations = obsMapper.selectBatchIds(observationIds).stream()
+                .collect(java.util.stream.Collectors.toMap(Observation::getId, item -> item));
+
+        var userIds = observations.values().stream().map(Observation::getUserId)
+                .filter(Objects::nonNull).distinct().toList();
+        Map<String, User> users = userIds.isEmpty() ? Map.of() : userMapper.selectBatchIds(userIds).stream()
+                .collect(java.util.stream.Collectors.toMap(User::getId, item -> item));
+
+        var cycleIds = observations.values().stream().map(Observation::getCycleId)
+                .filter(Objects::nonNull).distinct().toList();
+        Map<String, PlantingCycle> cycles = cycleIds.isEmpty() ? Map.of() : plantingCycleMapper.selectBatchIds(cycleIds).stream()
+                .collect(java.util.stream.Collectors.toMap(PlantingCycle::getId, item -> item));
+        var fieldIds = cycles.values().stream().map(PlantingCycle::getFieldId)
+                .filter(Objects::nonNull).distinct().toList();
+        Map<String, Field> fields = fieldIds.isEmpty() ? Map.of() : fieldMapper.selectBatchIds(fieldIds).stream()
+                .collect(java.util.stream.Collectors.toMap(Field::getId, item -> item));
+
+        for (var record : records) {
+            var observation = observations.get(record.getObservationId());
+            if (observation == null) continue;
+            var user = users.get(observation.getUserId());
+            if (user != null) {
+                record.setFarmerName(CharSequenceUtil.isNotBlank(user.getRealName())
+                        ? user.getRealName() : user.getUsername());
+            }
+            var cycle = cycles.get(observation.getCycleId());
+            var field = cycle != null ? fields.get(cycle.getFieldId()) : null;
+            if (field != null) record.setFieldName(field.getName());
+        }
     }
 
     public DiagnosisResultResponse getResult(String taskId, String userId, boolean privileged) {
@@ -135,7 +207,9 @@ public class DiagnosisService {
                                 item.getStr("docTitle", item.getStr("source", "")),
                                 item.getStr("snippet", item.getStr("content", ""))))
                         .toList();
-            } catch (Exception ignored) {}
+            } catch (Exception ex) {
+                log.warn("???? {} ? AI ?????????????: {}", dr.getId(), ex.getMessage());
+            }
         }
         return new DiagnosisResultResponse(status, dr.getDiseaseName(),
                 dr.getConfidence() != null ? dr.getConfidence() : BigDecimal.ZERO, treatment, citations);
@@ -160,7 +234,9 @@ public class DiagnosisService {
             String treatment = dr.getAiResult();
             if (CharSequenceUtil.isNotBlank(dr.getAiResult())) {
                 try { treatment = JSONUtil.parseObj(dr.getAiResult()).getStr("treatment"); }
-                catch (Exception ignored) {}
+                catch (Exception ex) {
+                    log.warn("???? {} ????????????????: {}", dr.getId(), ex.getMessage());
+                }
             }
             taskService.autoCreateFromDiagnosis(dr.getId(), dr.getDiseaseName(), treatment,
                     obs != null ? obs.getUserId() : reviewerId, obs != null ? obs.getCycleId() : null);

@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.yunong.security.UserDetailsImpl;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -41,6 +44,17 @@ public class DiagnosisController {
     public R<DiagnosisRecord> getById(@PathVariable String id,
                                       @AuthenticationPrincipal UserDetailsImpl principal) {
         return R.ok(service.getById(id, principal.getUserId(), isPrivileged(principal)));
+    }
+
+    @GetMapping("/{id}/image")
+    @Operation(summary = "Read protected diagnosis image")
+    public ResponseEntity<byte[]> image(@PathVariable String id,
+                                        @AuthenticationPrincipal UserDetailsImpl principal) {
+        var image = service.getImage(id, principal.getUserId(), isPrivileged(principal));
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(image.contentType()))
+                .cacheControl(CacheControl.noCache().cachePrivate())
+                .body(image.content());
     }
 
     @GetMapping

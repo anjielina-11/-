@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import {
+  ElTable,
   ElTableColumn,
   ElButton,
   ElInput,
@@ -17,6 +18,7 @@ import {
 } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+import { ensureFarmAvailable, parsePositiveArea, type FarmOption } from '@/utils/farmWorkflow'
 
 export interface IFarm {
   id: string
@@ -34,10 +36,7 @@ interface PageResult<T> {
   total: number
 }
 
-interface Farm {
-  id: string
-  name: string
-}
+type Farm = FarmOption
 
 interface FieldResponse {
   id: string
@@ -55,6 +54,8 @@ const loading = ref(false)
 const searchKeyword = ref('')
 
 const dialogVisible = ref(false)
+const farmDialogVisible = ref(false)
+const farmCreating = ref(false)
 const dialogTitle = ref('新增地块')
 const editId = ref<string | null>(null)
 
@@ -66,6 +67,24 @@ const form = reactive({
 })
 
 const formRef = ref<FormInstance>()
+const farmForm = reactive({
+  name: '',
+  address: '',
+  areaMu: ''
+})
+
+const validatePositiveArea = (
+  _rule: unknown,
+  value: string,
+  callback: (error?: Error) => void
+) => {
+  try {
+    parsePositiveArea(value)
+    callback()
+  } catch {
+    callback(new Error('面积必须大于0'))
+  }
+}
 
 const rules = {
   name: [
@@ -76,7 +95,7 @@ const rules = {
   ],
   area: [
     { required: true, message: '请输入面积', trigger: 'blur' },
-    { type: 'number' as const, min: 0, message: '面积必须大于0', trigger: 'blur' }
+    { validator: validatePositiveArea, trigger: 'blur' }
   ],
   soilType: [
     { required: true, message: '请选择土壤类型', trigger: 'change' }
@@ -137,14 +156,71 @@ const applyFilter = () => {
   tableData.value = filtered.slice(start, start + pageSize.value)
 }
 
-const handleAdd = () => {
-  dialogTitle.value = '新增地块'
-  editId.value = null
-  form.name = ''
-  form.farmId = farms.value[0]?.id || ''
-  form.area = ''
-  form.soilType = ''
-  dialogVisible.value = true
+const createFirstFarm = async (): Promise<Farm> => {
+  const { value } = await ElMessageBox.prompt(
+    '当前账号还没有农场，请先创建一个农场后再新增地块。',
+    '创建首个农场',
+    {
+      confirmButtonText: '创建并继续',
+      cancelButtonText: '取消',
+      inputPlaceholder: '请输入农场名称',
+      inputValidator: value => value.trim().length > 0 || '请输入农场名称',
+      closeOnClickModal: false
+    }
+  )
+  const farm = await request.post<Farm>('/farms', { name: value.trim() })
+  farms.value = [farm]
+  ElMessage.success('农场创建成功')
+  return farm
+}
+
+const handleAdd = async () => {
+  try {
+    const farm = await ensureFarmAvailable(farms.value, createFirstFarm)
+    dialogTitle.value = '新增地块'
+    editId.value = null
+    form.name = ''
+    form.farmId = farm.id
+    form.area = ''
+    form.soilType = ''
+    dialogVisible.value = true
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error('创建农场失败，请稍后重试')
+  }
+}
+
+const openFarmDialog = () => {
+  farmForm.name = ''
+  farmForm.address = ''
+  farmForm.areaMu = ''
+  farmDialogVisible.value = true
+}
+
+const createFarmInDialog = async () => {
+  const name = farmForm.name.trim()
+  if (!name) {
+    ElMessage.warning('请输入农场名称')
+    return
+  }
+
+  farmCreating.value = true
+  try {
+    const payload: { name: string; address?: string; areaMu?: number } = { name }
+    const address = farmForm.address.trim()
+    if (address) payload.address = address
+    if (farmForm.areaMu.trim()) payload.areaMu = parsePositiveArea(farmForm.areaMu)
+
+    const createdFarm = await request.post<Farm>('/farms', payload)
+    farms.value.push(createdFarm)
+    form.farmId = createdFarm.id
+    farmDialogVisible.value = false
+    ElMessage.success('农场创建成功，已自动选中')
+  } catch {
+    ElMessage.error('创建农场失败，请检查填写内容后重试')
+  } finally {
+    farmCreating.value = false
+  }
 }
 
 const handleEdit = (row: IFarm) => {
@@ -177,17 +253,18 @@ const handleSubmit = async () => {
     if (!valid) return
 
     try {
+      const areaMu = parsePositiveArea(form.area)
       if (editId.value) {
         await request.put(`/farms/${form.farmId}/fields/${editId.value}`, {
           name: form.name,
-          areaMu: parseFloat(form.area),
+          areaMu,
           soilType: form.soilType
         })
         ElMessage.success('修改成功')
       } else {
         await request.post(`/farms/${form.farmId}/fields`, {
           name: form.name,
-          areaMu: parseFloat(form.area),
+          areaMu,
           soilType: form.soilType
         })
         ElMessage.success('新增成功')
@@ -312,9 +389,12 @@ onMounted(() => {
           <ElInput v-model="form.name" placeholder="请输入地块名称" />
         </ElFormItem>
         <ElFormItem label="所属农场" prop="farmId">
-          <ElSelect v-model="form.farmId" placeholder="请选择所属农场" style="width: 100%" :disabled="!!editId">
-            <ElOption v-for="farm in farms" :key="farm.id" :label="farm.name" :value="farm.id" />
-          </ElSelect>
+          <div class="farm-select-row">
+            <ElSelect v-model="form.farmId" placeholder="请选择所属农场" :disabled="!!editId">
+              <ElOption v-for="farm in farms" :key="farm.id" :label="farm.name" :value="farm.id" />
+            </ElSelect>
+            <ElButton v-if="!editId" type="primary" plain :icon="Plus" @click="openFarmDialog">新建农场</ElButton>
+          </div>
         </ElFormItem>
         <ElFormItem label="面积（亩）" prop="area">
           <ElInput v-model="form.area" type="number" placeholder="请输入面积" />
@@ -329,6 +409,33 @@ onMounted(() => {
         <div class="dialog-footer">
           <ElButton @click="handleClose">取消</ElButton>
           <ElButton type="primary" @click="handleSubmit">确定</ElButton>
+        </div>
+      </template>
+    </ElDialog>
+
+    <ElDialog
+      v-model="farmDialogVisible"
+      title="新建农场"
+      width="480px"
+      :close-on-click-modal="false"
+      append-to-body
+      class="custom-dialog"
+    >
+      <ElForm :model="farmForm" label-width="90px" label-position="left" class="custom-form">
+        <ElFormItem label="农场名称" required>
+          <ElInput v-model="farmForm.name" maxlength="50" show-word-limit placeholder="请输入农场名称" />
+        </ElFormItem>
+        <ElFormItem label="所在地址">
+          <ElInput v-model="farmForm.address" maxlength="100" placeholder="例如：云南省昆明市呈贡区" />
+        </ElFormItem>
+        <ElFormItem label="面积（亩）">
+          <ElInput v-model="farmForm.areaMu" type="number" min="0" placeholder="选填" />
+        </ElFormItem>
+      </ElForm>
+      <template #footer>
+        <div class="dialog-footer">
+          <ElButton :disabled="farmCreating" @click="farmDialogVisible = false">取消</ElButton>
+          <ElButton type="primary" :loading="farmCreating" @click="createFarmInDialog">创建并选中</ElButton>
         </div>
       </template>
     </ElDialog>
@@ -464,6 +571,20 @@ onMounted(() => {
 
 .custom-form :deep(.el-select) {
   width: 100%;
+}
+
+.farm-select-row {
+  display: flex;
+  width: 100%;
+  gap: var(--spacing-sm);
+}
+
+.farm-select-row :deep(.el-select) {
+  flex: 1;
+}
+
+.farm-select-row :deep(.el-button) {
+  flex-shrink: 0;
 }
 
 .custom-form :deep(.el-select .el-input__wrapper) {

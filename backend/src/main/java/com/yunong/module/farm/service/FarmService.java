@@ -36,6 +36,13 @@ public class FarmService {
         return PageResult.of(result.getRecords(), result.getTotal());
     }
 
+    public PageResult<Farm> listAll(int page, int size) {
+        var wrapper = new LambdaQueryWrapper<Farm>()
+                .orderByDesc(Farm::getCreatedAt);
+        var result = farmMapper.selectPage(new Page<>(page, size), wrapper);
+        return PageResult.of(result.getRecords(), result.getTotal());
+    }
+
     public Farm getById(String id, String ownerId) {
         var farm = farmMapper.selectById(id);
         if (farm == null) throw new BusinessException(ErrorCode.FARM_NOT_FOUND);

@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance, type InternalAxiosRequestConfig, type AxiosResponse, type AxiosError } from 'axios'
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig, type AxiosResponse, type AxiosError, type ResponseType } from 'axios'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import router from '@/router'
@@ -6,6 +6,7 @@ import router from '@/router'
 interface RequestConfig {
   params?: Record<string, unknown>
   headers?: Record<string, string>
+  responseType?: ResponseType
 }
 
 interface CustomAxiosInstance extends AxiosInstance {

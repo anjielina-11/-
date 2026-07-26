@@ -83,13 +83,17 @@ const fetchCycles = async () => {
 }
 
 const beforeUpload = (file: UploadRawFile) => {
+  if (!selectedCycle.value) {
+    ElMessage.warning('请先选择种植周期')
+    return false
+  }
   const isImage = file.type === 'image/jpeg' || file.type === 'image/png'
   if (!isImage) {
     ElMessage.error('仅支持 JPG/PNG 图片格式')
     return false
   }
-  if (file.size / 1024 / 1024 >= 10) {
-    ElMessage.error('图片大小不能超过 10MB')
+  if (file.size / 1024 / 1024 >= 20) {
+    ElMessage.error('图片大小不能超过 20MB')
     return false
   }
   if (uploadedImageUrl.value.startsWith('blob:')) URL.revokeObjectURL(uploadedImageUrl.value)
@@ -110,10 +114,12 @@ const handleUploadSuccess = (response: UploadResponse) => {
     return
   }
   ElMessage.error(response.message || '图片上传失败')
+  handleRemove()
 }
 
 const handleUploadError = () => {
   isUploading.value = false
+  handleRemove()
   ElMessage.error('上传请求失败，请检查网络后重试')
 }
 
@@ -222,15 +228,16 @@ onUnmounted(() => {
             <label class="form-label">病害图片</label>
             <div class="upload-wrapper">
               <ElUpload
-                v-if="!uploadedImageUrl"
+                v-show="!uploadedImageUrl"
                 :action="uploadUrl"
                 :show-file-list="false"
                 :before-upload="beforeUpload"
                 :on-success="handleUploadSuccess"
                 :on-error="handleUploadError"
-                :disabled="isUploading || !selectedCycle"
+                :disabled="isUploading"
                 :data="{ cycleId: selectedCycle }"
                 :headers="uploadHeaders"
+                accept="image/jpeg,image/png"
                 drag
                 class="custom-upload"
               >
@@ -238,12 +245,15 @@ onUnmounted(() => {
                   <div class="upload-icon">
                     <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   </div>
-                  <p class="upload-text">将图片拖到此处，或<em>点击上传</em></p>
-                  <p class="upload-hint">支持 JPG/PNG 格式，单张不超过 10MB</p>
+                  <p class="upload-text">将图片拖到此处</p>
+                  <p class="upload-hint">支持 JPG/PNG 格式，单张不超过 20MB</p>
+                  <ElButton type="primary" plain class="select-image-button">
+                    选择病害图片
+                  </ElButton>
                 </div>
               </ElUpload>
 
-              <div v-else class="preview-area">
+              <div v-if="uploadedImageUrl" class="preview-area">
                 <div class="preview-image-wrap">
                   <ElImage :src="uploadedImageUrl" class="preview-image" fit="contain" />
                   <div class="preview-overlay" @click="handleRemove">
@@ -482,6 +492,10 @@ onUnmounted(() => {
   color: var(--color-primary);
   font-style: normal;
   cursor: pointer;
+}
+
+.select-image-button {
+  margin-top: var(--spacing-xs);
 }
 
 .upload-hint {

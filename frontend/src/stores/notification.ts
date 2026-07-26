@@ -2,6 +2,13 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { diseaseDisplayName, normalizeReviewStatus } from '@/utils/domainMappers'
 
+interface DiagnosisNotificationSource {
+  id: string
+  diseaseName?: string | null
+  reviewStatus?: string | null
+  createdAt?: string | null
+}
+
 export interface Notification {
   id: string
   title: string
@@ -10,6 +17,30 @@ export interface Notification {
   read: boolean
   createdAt: string
   link?: string
+}
+
+const isNotification = (value: unknown): value is Notification => {
+  if (!value || typeof value !== 'object') return false
+
+  const item = value as Partial<Notification>
+  return typeof item.id === 'string'
+    && typeof item.title === 'string'
+    && typeof item.content === 'string'
+    && ['info', 'success', 'warning', 'error'].includes(item.type ?? '')
+    && typeof item.read === 'boolean'
+    && typeof item.createdAt === 'string'
+    && (item.link === undefined || typeof item.link === 'string')
+}
+
+const restoreNotifications = (saved: string | null): Notification[] => {
+  if (!saved) return []
+
+  try {
+    const parsed: unknown = JSON.parse(saved)
+    return Array.isArray(parsed) ? parsed.filter(isNotification) : []
+  } catch {
+    return []
+  }
 }
 
 export const useNotificationStore = defineStore('notification', () => {
@@ -22,26 +53,18 @@ export const useNotificationStore = defineStore('notification', () => {
       const { default: request } = await import('@/utils/request')
       const { useUserStore } = await import('@/stores/user')
       const role = useUserStore().user?.role
-      const page = await request.get<{ list: any[]; total: number }>('/diagnosis?size=20')
-      notifications.value = page.list.map((item: any) => ({
-          id: item.id,
-          title: item.diseaseName ? `诊断结果: ${diseaseDisplayName(item.diseaseName)}` : '新诊断记录',
-          content: reviewStatusText(item.reviewStatus),
-          type: notificationType(item.reviewStatus),
-          read: false,
-          createdAt: item.createdAt || new Date().toISOString(),
-          link: role === 'tech' ? `/tech/results?id=${item.id}` : undefined
-        }))
+      const page = await request.get<{ list: DiagnosisNotificationSource[]; total: number }>('/diagnosis?size=20')
+      notifications.value = page.list.map(item => ({
+        id: item.id,
+        title: item.diseaseName ? `病害识别：${diseaseDisplayName(item.diseaseName)}` : '病害识别结果',
+        content: reviewStatusText(item.reviewStatus ?? undefined),
+        type: notificationType(item.reviewStatus ?? undefined),
+        read: false,
+        createdAt: item.createdAt || new Date().toISOString(),
+        link: role === 'tech' ? `/tech/results?id=${item.id}` : undefined
+      }))
     } catch {
-      // 离线时从 localStorage 恢复
-      const saved = localStorage.getItem('notifications')
-      if (saved) {
-        try {
-          notifications.value = JSON.parse(saved)
-        } catch {
-          notifications.value = []
-        }
-      }
+      notifications.value = restoreNotifications(localStorage.getItem('notifications'))
     }
     updateUnreadCount()
   }

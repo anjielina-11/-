@@ -10,6 +10,7 @@ import com.yunong.module.farm.service.FarmService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.yunong.security.UserDetailsImpl;
 import org.springframework.web.bind.annotation.*;
@@ -40,6 +41,15 @@ public class FarmController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
         return R.ok(service.listByOwner(principal.getUserId(), page, size));
+    }
+
+    @GetMapping("/accessible")
+    @PreAuthorize("hasAnyRole('COOP_MANAGER', 'ADMIN')")
+    @Operation(summary = "???????????")
+    public R<PageResult<Farm>> listAccessible(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return R.ok(service.listAll(page, size));
     }
 
     @GetMapping("/{id}")

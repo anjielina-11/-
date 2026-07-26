@@ -1,40 +1,46 @@
-# 依赖
+﻿# Dependencies
 node_modules/
-target/
-*.jar
+.venv/
+venv/
 
-# 构建产物
+# Build outputs
 dist/
 build/
-
-# IDE
-.idea/
-*.iml
-.vscode/
-
-# 环境变量
-.env
-.env.local
-.env.*.local
-
-# 日志
-*.log
-logs/
-
-# OS
-.DS_Store
-Thumbs.db
+target/
+*.jar
 
 # Python
 __pycache__/
 .pytest_cache/
-*.pyc
-*.pyo
-.venv/
-venv/
+*.py[cod]
 *.egg-info/
 
-# AI 模型文件（默认忽略，交付模型显式纳入仓库）
+# Frontend tests and coverage
+coverage/
+frontend/test-results/
+playwright-report/
+
+# IDE and operating system
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Logs and temporary files
+*.log
+logs/
+*.tmp
+*.swp
+*.swo
+*~
+
+# AI model artifacts: keep only delivery models
 *.pth
 *.pt
 *.h5
@@ -42,29 +48,22 @@ venv/
 !ai-service/best_model.pth
 !ai-service/class_to_idx.pth
 
-# 向量数据库 (本地数据)
+# Local vector/database data
 chroma_db/
-
-# Docker
 deploy/data/
 
-# 本地审计与自动化产物
+# Local audit and automation artifacts
 .audit/
 .playwright-mcp/
-frontend/test-results/
-playwright-report/
-coverage/
-result-detail-valid.png
-result-detail-valid.yml
-.claudeignore
 docs/superpowers/
+.claudeignore
 
-# 临时文件
-*.tmp
-*.swp
-*.swo
-*~
+# Root-level browser acceptance artifacts
+/acceptance-*
+/upload-*
+/path-audit-*
+/result-detail-valid.*
 
-# CodeArts 平台配置文件
+# Platform-specific metadata
 .arts/
 .codeartsdoer/

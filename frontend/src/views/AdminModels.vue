@@ -5,7 +5,7 @@ import {
   ElInput, ElSelect, ElOption, ElMessage, ElTag, ElIcon
 } from 'element-plus'
 import { Edit, Delete, Upload, Loading, CircleClose, TrendCharts } from '@element-plus/icons-vue'
-import * as echarts from 'echarts'
+import * as echarts from '@/utils/echarts'
 import request from '@/utils/request'
 import { percentToRatio, ratioToPercent } from '@/utils/domainMappers'
 

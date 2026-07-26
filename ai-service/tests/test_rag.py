@@ -31,6 +31,12 @@ def test_ingest_documents(setup_and_teardown):
     assert chunk_count > 0, f"Expected at least 1 chunk, got {chunk_count}"
 
 
+def test_ingest_uses_versioned_collection(setup_and_teardown):
+    RAGService.ingest_documents(setup_and_teardown)
+
+    assert RAGService._vector_store._collection.name == RAGService.COLLECTION_NAME
+
+
 def test_retrieve_returns_non_empty_list(setup_and_teardown):
     RAGService.ingest_documents(setup_and_teardown)
     
@@ -84,3 +90,48 @@ def test_ensure_initialized_populates_empty_vector_database(tmp_path, monkeypatc
 
     assert chunk_count > 0
     assert RAGService.retrieve("番茄晚疫病防治")
+
+
+def test_retrieve_prioritizes_same_disease_documents(monkeypatch):
+    class FakeDoc:
+        def __init__(self, content, source):
+            self.page_content = content
+            self.metadata = {"source": source}
+
+    class FakeStore:
+        last_filter = None
+
+        def similarity_search_with_score(self, query, k, filter=None):
+            self.last_filter = filter
+            return [
+                (FakeDoc("\u5927\u8c46\u98df\u5fc3\u866b\u9632\u6cbb", "soybean.txt"), 0.05),
+                (FakeDoc("\u67d1\u6a58\u6e83\u75a1\u75c5\u9632\u6cbb", "citrus.txt"), 0.18),
+                (FakeDoc("\u67d1\u6a58\u7ea2\u8718\u86db\u9632\u6cbb", "spider.txt"), 0.10),
+            ]
+
+    monkeypatch.setattr(RAGService, "_vector_store", FakeStore())
+
+    results = RAGService.retrieve("\u67d1\u6a58\u6e83\u75a1\u75c5\u9632\u6cbb", top_k=2)
+
+    assert RAGService._vector_store.last_filter == {"disease": "\u67d1\u6a58\u6e83\u75a1\u75c5"}
+    assert results[0]["source"] == "citrus.txt"
+    assert all("\u5927\u8c46\u98df\u5fc3\u866b" not in item["content"] for item in results)
+
+
+def test_markdown_ingest_preserves_disease_heading_on_all_chunks(setup_and_teardown):
+    docs_dir = setup_and_teardown
+    disease = "\u67d1\u6a58\u6e83\u75a1\u75c5"
+    treatment = "\u9632\u6cbb\u65b9\u6cd5\uff1a\u6e05\u9664\u75c5\u679d\uff0c\u5408\u7406\u65bd\u80a5\u3002"
+    markdown = f"# Test\n\n## {disease} (Citrus Canker)\n\n" + treatment * 80
+    with open(os.path.join(docs_dir, "citrus.md"), "w", encoding="utf-8") as file:
+        file.write(markdown)
+
+    RAGService.ingest_documents(docs_dir)
+    stored = RAGService._vector_store.get(
+        where={"disease": disease},
+        include=["documents", "metadatas"],
+    )
+
+    assert stored["documents"]
+    assert all(disease in content for content in stored["documents"])
+    assert all(item.get("disease") == disease for item in stored["metadatas"])

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ElProgress,
@@ -9,12 +9,15 @@ import {
   ElMessage,
   ElTable,
   ElTableColumn,
-  ElTag
+  ElTag,
+  ElIcon,
+  ElSkeleton
 } from 'element-plus'
 import { ArrowLeft, WarningFilled } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import {
   diseaseDisplayName,
+  formatDateTime,
   markdownToPlainText,
   normalizeReviewStatus,
   ratioToPercent
@@ -44,6 +47,9 @@ const diagnosisList = ref<Array<{
   createdAt?: string
 }>>([])
 const loading = ref(true)
+const diagnosisImageUrl = ref('')
+const imageLoading = ref(false)
+const imageError = ref(false)
 const selectedId = computed(() => route.query.id as string | undefined)
 
 const confidencePercent = computed(() => {
@@ -128,6 +134,25 @@ const loadList = async () => {
   diagnosisList.value = page.list
 }
 
+const releaseDiagnosisImage = () => {
+  if (diagnosisImageUrl.value) URL.revokeObjectURL(diagnosisImageUrl.value)
+  diagnosisImageUrl.value = ''
+}
+
+const loadDiagnosisImage = async (diagnosisId: string) => {
+  releaseDiagnosisImage()
+  imageLoading.value = true
+  imageError.value = false
+  try {
+    const blob = await request.get<Blob>(`/diagnosis/${diagnosisId}/image`, { responseType: 'blob' })
+    diagnosisImageUrl.value = URL.createObjectURL(blob)
+  } catch {
+    imageError.value = true
+  } finally {
+    imageLoading.value = false
+  }
+}
+
 const loadDetail = async (diagnosisId: string) => {
   const data = await request.get<{
     status: IResult['status']
@@ -152,7 +177,7 @@ const handleOpen = async (diagnosisId: string) => {
   loading.value = true
   try {
     await router.replace({ query: { id: diagnosisId } })
-    await loadDetail(diagnosisId)
+    await Promise.all([loadDetail(diagnosisId), loadDiagnosisImage(diagnosisId)])
   } catch {
     ElMessage.error('获取诊断结果失败')
   } finally {
@@ -163,6 +188,8 @@ const handleOpen = async (diagnosisId: string) => {
 const handleBack = async () => {
   loading.value = true
   result.value = null
+  releaseDiagnosisImage()
+  imageError.value = false
   try {
     await router.replace({ query: {} })
     await loadList()
@@ -175,14 +202,19 @@ const handleBack = async () => {
 
 onMounted(async () => {
   try {
-    if (selectedId.value) await loadDetail(selectedId.value)
-    else await loadList()
+    if (selectedId.value) {
+      await Promise.all([loadDetail(selectedId.value), loadDiagnosisImage(selectedId.value)])
+    } else {
+      await loadList()
+    }
   } catch {
     ElMessage.error(selectedId.value ? '获取诊断结果失败' : '获取诊断列表失败')
   } finally {
     loading.value = false
   }
 })
+
+onBeforeUnmount(releaseDiagnosisImage)
 </script>
 
 <template>
@@ -217,7 +249,9 @@ onMounted(async () => {
               </ElTag>
             </template>
           </ElTableColumn>
-          <ElTableColumn prop="createdAt" label="提交时间" min-width="180" />
+          <ElTableColumn label="提交时间" min-width="180">
+            <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+          </ElTableColumn>
           <ElTableColumn label="操作" width="110" fixed="right">
             <template #default="{ row }">
               <ElButton type="primary" link @click="handleOpen(row.id)">查看详情</ElButton>
@@ -255,6 +289,22 @@ onMounted(async () => {
             返回列表
           </ElButton>
         </div>
+      </div>
+
+      <!-- 上报病害原图 -->
+      <div class="diagnosis-image-card">
+        <div class="section-header">
+          <h3 class="section-title">病害原图</h3>
+        </div>
+        <ElSkeleton v-if="imageLoading" animated class="diagnosis-image-skeleton" />
+        <img
+          v-else-if="diagnosisImageUrl"
+          :src="diagnosisImageUrl"
+          :alt="`${result.diseaseName}上报图片`"
+          class="diagnosis-image"
+        />
+        <ElEmpty v-else-if="imageError" description="病害图片加载失败" :image-size="72" />
+        <ElEmpty v-else description="暂无病害图片" :image-size="72" />
       </div>
 
       <!-- 顶部信息卡片 -->
@@ -368,6 +418,33 @@ onMounted(async () => {
 .disease-list-name {
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+/* 上报病害原图 */
+.diagnosis-image-card {
+  padding: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.diagnosis-image,
+.diagnosis-image-skeleton {
+  display: block;
+  width: 100%;
+  min-height: 260px;
+  max-height: 520px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-page);
+}
+
+.diagnosis-image {
+  object-fit: contain;
+}
+
+.diagnosis-image-skeleton :deep(.el-skeleton__item) {
+  height: 320px;
 }
 
 /* 顶部信息卡片 */

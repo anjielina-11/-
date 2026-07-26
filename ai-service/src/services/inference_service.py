@@ -4,6 +4,7 @@ from torchvision import transforms, models
 from PIL import Image
 from io import BytesIO
 from ..core.config import settings
+from ..core.paths import resolve_service_path
 
 
 class UnknownDiseaseError(Exception):
@@ -14,8 +15,8 @@ class UnknownDiseaseError(Exception):
 
 class DiseaseClassifier:
     def __init__(self, model_path=None, class_to_idx_path=None, num_classes=None, threshold=None, device=None):
-        self.model_path = model_path if model_path else settings.MODEL_PATH
-        self.class_to_idx_path = class_to_idx_path if class_to_idx_path else settings.CLASS_TO_IDX_PATH
+        self.model_path = resolve_service_path(model_path or settings.MODEL_PATH)
+        self.class_to_idx_path = resolve_service_path(class_to_idx_path or settings.CLASS_TO_IDX_PATH)
         self.threshold = threshold if threshold else settings.CONFIDENCE_THRESHOLD
         self.device = device if device else ("cuda" if torch.cuda.is_available() else "cpu")
         

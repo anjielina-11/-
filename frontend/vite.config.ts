@@ -9,6 +9,15 @@ export default defineConfig({
       '@': resolve(__dirname, 'src')
     }
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('/node_modules/zrender/')) return 'zrender'
+        }
+      }
+    }
+  },
   server: {
     proxy: {
       '/api': {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { ElTable, ElTableColumn, ElTag, ElButton, ElMessage } from 'element-plus'
-import * as echarts from 'echarts'
+import { ElTable, ElTableColumn, ElTag, ElButton, ElMessage, ElIcon } from 'element-plus'
+import * as echarts from '@/utils/echarts'
 import { RefreshRight, Top, Bottom, Minus } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 

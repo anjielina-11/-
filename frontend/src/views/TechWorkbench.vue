@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import {
   ElTable,
   ElTableColumn,
@@ -13,11 +13,14 @@ import {
   ElFormItem,
   ElInput,
   ElMessage,
+  ElIcon,
+  ElImage,
+  ElSkeleton,
   type FormInstance
 } from 'element-plus'
 import { Clock, CircleCheck, CircleClose, RefreshRight } from '@element-plus/icons-vue'
 import request from '@/utils/request'
-import { diseaseDisplayName, normalizeReviewStatus } from '@/utils/domainMappers'
+import { diseaseDisplayName, formatDateTime, normalizeReviewStatus, ratioToPercent } from '@/utils/domainMappers'
 
 export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'failed'
 
@@ -61,6 +64,9 @@ const dateRange = ref<Date[]>([])
 const dialogVisible = ref(false)
 const dialogLoading = ref(false)
 const currentItem = ref<ReviewItem | null>(null)
+const diagnosisImageUrl = ref('')
+const imageLoading = ref(false)
+const imageError = ref(false)
 
 const form = reactive({
   rejectReason: ''
@@ -130,12 +136,12 @@ const fetchData = async () => {
       }
       return {
         taskId: record.id,
-        farmerName: record.farmerName || '未知农户',
-        fieldName: record.fieldName || '',
+        farmerName: record.farmerName || '未登记农户姓名',
+        fieldName: record.fieldName || '未关联地块',
         diseaseName: diseaseDisplayName(record.diseaseName),
         confidence: Number(record.confidence) || 0,
         status: normalizeReviewStatus(record.reviewStatus),
-        submitTime: record.submitTime || record.createdAt || '',
+        submitTime: formatDateTime(record.submitTime || record.createdAt),
         treatment: record.treatment || aiResult.treatment || '',
         citations: record.citations || aiResult.citations || []
       }
@@ -157,15 +163,36 @@ const handleReset = () => {
   fetchData()
 }
 
-const handleViewDetail = (row: ReviewItem) => {
-  currentItem.value = row
-  dialogVisible.value = true
+const releaseDiagnosisImage = () => {
+  if (diagnosisImageUrl.value) URL.revokeObjectURL(diagnosisImageUrl.value)
+  diagnosisImageUrl.value = ''
 }
 
-const handleReview = (row: ReviewItem) => {
+const loadDiagnosisImage = async (diagnosisId: string) => {
+  releaseDiagnosisImage()
+  imageLoading.value = true
+  imageError.value = false
+  try {
+    const blob = await request.get<Blob>(`/diagnosis/${diagnosisId}/image`, { responseType: 'blob' })
+    diagnosisImageUrl.value = URL.createObjectURL(blob)
+  } catch {
+    imageError.value = true
+  } finally {
+    imageLoading.value = false
+  }
+}
+
+const openDetail = (row: ReviewItem) => {
   currentItem.value = row
-  form.rejectReason = ''
   dialogVisible.value = true
+  void loadDiagnosisImage(row.taskId)
+}
+
+const handleViewDetail = (row: ReviewItem) => openDetail(row)
+
+const handleReview = (row: ReviewItem) => {
+  form.rejectReason = ''
+  openDetail(row)
 }
 
 const handleApprove = async () => {
@@ -225,11 +252,15 @@ const handleReject = async () => {
 const handleClose = () => {
   dialogVisible.value = false
   form.rejectReason = ''
+  releaseDiagnosisImage()
+  imageError.value = false
 }
 
 onMounted(() => {
   fetchData()
 })
+
+onUnmounted(releaseDiagnosisImage)
 </script>
 
 <template>
@@ -339,13 +370,13 @@ onMounted(() => {
                 <div
                   class="confidence-bar__fill"
                   :style="{
-                    width: Math.round(row.confidence * 100) + '%',
+                    width: ratioToPercent(row.confidence) + '%',
                     backgroundColor: getConfidenceColor(row.confidence)
                   }"
                 ></div>
               </div>
               <span class="confidence-bar__text" :style="{ color: getConfidenceColor(row.confidence) }">
-                {{ Math.round(row.confidence * 100) }}%
+                {{ ratioToPercent(row.confidence) }}%
               </span>
             </div>
           </template>
@@ -404,6 +435,18 @@ onMounted(() => {
             <div class="section-title__bar"></div>
             <span>识别详情</span>
           </div>
+          <div class="diagnosis-image-panel">
+            <span class="detail-label">病害原图</span>
+            <ElSkeleton v-if="imageLoading" animated class="image-skeleton" />
+            <ElImage
+              v-else-if="diagnosisImageUrl"
+              :src="diagnosisImageUrl"
+              :preview-src-list="[diagnosisImageUrl]"
+              fit="contain"
+              class="diagnosis-image"
+            />
+            <div v-else class="image-placeholder">{{ imageError ? '原图加载失败，请稍后重试' : '暂无病害原图' }}</div>
+          </div>
           <div class="detail-grid">
             <div class="detail-item">
               <span class="detail-label">农户名称</span>
@@ -425,13 +468,13 @@ onMounted(() => {
                     <div
                       class="confidence-bar__fill"
                       :style="{
-                        width: Math.round(currentItem.confidence * 100) + '%',
+                        width: ratioToPercent(currentItem.confidence) + '%',
                         backgroundColor: getConfidenceColor(currentItem.confidence)
                       }"
                     ></div>
                   </div>
                   <span class="confidence-bar__text" :style="{ color: getConfidenceColor(currentItem.confidence) }">
-                    {{ Math.round(currentItem.confidence * 100) }}%
+                    {{ ratioToPercent(currentItem.confidence) }}%
                   </span>
                 </div>
               </div>
@@ -475,6 +518,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.diagnosis-image-panel { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.diagnosis-image { width: 100%; height: 280px; border-radius: 10px; background: var(--color-bg-page); }
+.image-placeholder { display: grid; place-items: center; height: 180px; color: var(--color-text-secondary); background: var(--color-bg-page); border-radius: 10px; }
+.image-skeleton { height: 180px; }
+
 /* 统计卡片 */
 .stat-cards {
   display: grid;

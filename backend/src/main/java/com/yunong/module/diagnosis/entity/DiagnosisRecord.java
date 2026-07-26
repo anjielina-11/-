@@ -1,5 +1,6 @@
 package com.yunong.module.diagnosis.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.yunong.common.BaseEntity;
@@ -32,4 +33,10 @@ public class DiagnosisRecord extends BaseEntity {
     private String feedback;
     private LocalDateTime feedbackAt;
     private String severity;
+
+    @TableField(exist = false)
+    private String farmerName;
+
+    @TableField(exist = false)
+    private String fieldName;
 }

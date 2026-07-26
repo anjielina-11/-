@@ -40,7 +40,7 @@ public class WeatherController {
     @PostMapping("/fetch")
     @AuditLog(action = "手动触发天气采集")
     @Operation(summary = "手动触发天气采集(管理员)")
-    public R<String> fetch() {
-        return R.ok("天气数据采集任务已提交，定时任务每小时自动执行");
+    public R<Map<String, Object>> fetch(@RequestParam String farmId) {
+        return R.ok(service.refreshForecast(farmId));
     }
 }

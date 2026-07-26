@@ -1,5 +1,6 @@
 package com.yunong.module.farm;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yunong.exception.BusinessException;
 import com.yunong.exception.ErrorCode;
 import com.yunong.module.farm.entity.Farm;
@@ -15,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +42,21 @@ class FarmServiceTest {
                 () -> service.getById("farm-1", "owner-2"));
 
         assertEquals(ErrorCode.NOT_FARM_OWNER.getCode(), error.getCode());
+    }
+
+    @Test
+    void listsAllFarmsForCoopDashboard() {
+        var first = farm("farm-1", "owner-1");
+        var second = farm("farm-2", "owner-2");
+        var page = new Page<Farm>(1, 100);
+        page.setRecords(java.util.List.of(first, second));
+        page.setTotal(2);
+        when(farmMapper.selectPage(any(Page.class), any())).thenReturn(page);
+
+        var result = service.listAll(1, 100);
+
+        assertEquals(2, result.getTotal());
+        assertEquals(java.util.List.of(first, second), result.getList());
     }
 
     @Test

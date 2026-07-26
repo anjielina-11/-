@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 
 /**
  * 定时数据采集服务 —— 天气 & 市场价格
- * 当前使用模拟数据，后续对接真实 API 只需替换模拟逻辑
+ * 定时采集使用稳定的课程演示数据；实时天气预报由 WeatherService 调用 Open-Meteo 获取
  */
 @Slf4j
 @Service
@@ -38,7 +38,7 @@ public class ScheduledTaskService {
         try {
             var farms = farmMapper.selectList(null);
             for (var farm : farms) {
-                // TODO: 对接真实天气 API 后按农场坐标获取数据。
+                // 定时历史记录使用稳定基准值，避免第三方接口波动影响课程演示。
                 var record = new WeatherRecord();
                 record.setFarmId(farm.getId());
                 record.setTemperature(new BigDecimal("25.5"));
@@ -65,7 +65,7 @@ public class ScheduledTaskService {
         try {
             var crops = cropMapper.selectList(null);
             for (var crop : crops) {
-                // TODO: 对接真实市场价格 API 后按作物和市场获取数据。
+                // 市场价格暂无稳定公共数据源，使用带日期的演示采样值。
                 var record = new MarketPrice();
                 record.setCropId(crop.getId());
                 record.setCropName(crop.getName());

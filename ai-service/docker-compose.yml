@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   ai-service:
     build: .
@@ -19,11 +17,11 @@ services:
       - PORT=8000
       - CONFIDENCE_THRESHOLD=0.6
       - RAG_TOP_K=3
-      - LLM_API_KEY=${LLM_API_KEY}
-      - LLM_API_BASE=${LLM_API_BASE}
-      - LLM_MODEL_NAME=${LLM_MODEL_NAME}
-      - WEATHER_API_KEY=${WEATHER_API_KEY}
-      - WEATHER_API_BASE=${WEATHER_API_BASE}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_API_BASE=${LLM_API_BASE:-}
+      - LLM_MODEL_NAME=${LLM_MODEL_NAME:-}
+      - WEATHER_API_KEY=${WEATHER_API_KEY:-}
+      - WEATHER_API_BASE=${WEATHER_API_BASE:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

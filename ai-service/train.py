@@ -7,8 +7,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import models
 
-import sys
-sys.path.insert(0, "src")
+from src.core.paths import AI_SERVICE_ROOT, resolve_service_path
 from src.services.data_loader import get_data_loaders
 
 
@@ -179,14 +178,14 @@ def main():
     parser = argparse.ArgumentParser(description="农作物病害识别模型训练")
     parser.add_argument(
         "--train-dir",
-        type=str,
-        default="data/train",
+        type=resolve_service_path,
+        default=AI_SERVICE_ROOT / "data" / "train",
         help="训练集目录路径",
     )
     parser.add_argument(
         "--val-dir",
-        type=str,
-        default="data/val",
+        type=resolve_service_path,
+        default=AI_SERVICE_ROOT / "data" / "val",
         help="验证集目录路径",
     )
     parser.add_argument(
@@ -215,8 +214,8 @@ def main():
     )
     parser.add_argument(
         "--save-path",
-        type=str,
-        default="best_model.pth",
+        type=resolve_service_path,
+        default=AI_SERVICE_ROOT / "best_model.pth",
         help="最佳模型保存路径",
     )
 

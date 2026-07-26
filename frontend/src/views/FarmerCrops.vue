@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElCard, ElTable, ElTableColumn, ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElDatePicker, ElSelect, ElOption, ElMessage, ElTag } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
-import * as echarts from 'echarts'
+import * as echarts from '@/utils/echarts'
 import request from '@/utils/request'
 import { cycleStatusLabel } from '@/utils/domainMappers'
 
@@ -39,7 +39,16 @@ interface PageResult<T> {
 interface CropOption {
   id: string
   name: string
+  category?: string
   variety?: string
+  growthDays?: number
+}
+
+interface NewCropForm {
+  name: string
+  category: string
+  variety: string
+  growthDays?: number
 }
 
 interface FarmOption {
@@ -57,7 +66,15 @@ const crops = ref<Crop[]>([])
 const cropOptions = ref<CropOption[]>([])
 const fieldOptions = ref<FieldOption[]>([])
 const dialogVisible = ref(false)
+const cropDialogVisible = ref(false)
+const cropSubmitting = ref(false)
 const editMode = ref(false)
+const newCropForm = ref<NewCropForm>({
+  name: '',
+  category: '',
+  variety: '',
+  growthDays: undefined
+})
 const formData = ref<Crop>({
   id: '',
   cropId: '',
@@ -209,6 +226,42 @@ const updateChart = () => {
     }]
   }
   chartInstance.setOption(option)
+}
+
+const openCropDialog = () => {
+  newCropForm.value = {
+    name: '',
+    category: '',
+    variety: '',
+    growthDays: undefined
+  }
+  cropDialogVisible.value = true
+}
+
+const handleCreateCrop = async () => {
+  const name = newCropForm.value.name.trim()
+  if (!name) {
+    ElMessage.warning('请输入作物名称')
+    return
+  }
+
+  cropSubmitting.value = true
+  try {
+    const createdCrop = await request.post<CropOption>('/crops', {
+      name,
+      category: newCropForm.value.category.trim() || undefined,
+      variety: newCropForm.value.variety.trim() || undefined,
+      growthDays: newCropForm.value.growthDays || undefined
+    })
+    cropOptions.value.unshift(createdCrop)
+    formData.value.cropId = createdCrop.id
+    cropDialogVisible.value = false
+    ElMessage.success('作物品种创建成功，已自动选中')
+  } catch {
+    ElMessage.error('创建作物品种失败')
+  } finally {
+    cropSubmitting.value = false
+  }
 }
 
 const handleAdd = () => {
@@ -414,9 +467,12 @@ onUnmounted(() => {
     >
       <ElForm :model="formData" label-width="110px" label-position="left" class="custom-form">
         <ElFormItem label="作物名称" required>
-          <ElSelect v-model="formData.cropId" placeholder="请选择作物" style="width: 100%">
-            <ElOption v-for="crop in cropOptions" :key="crop.id" :label="crop.variety ? `${crop.name} / ${crop.variety}` : crop.name" :value="crop.id" />
-          </ElSelect>
+          <div class="crop-select-row">
+            <ElSelect v-model="formData.cropId" placeholder="请选择作物" style="width: 100%">
+              <ElOption v-for="crop in cropOptions" :key="crop.id" :label="crop.variety ? `${crop.name} / ${crop.variety}` : crop.name" :value="crop.id" />
+            </ElSelect>
+            <ElButton type="primary" plain :icon="Plus" @click="openCropDialog">新建作物品种</ElButton>
+          </div>
         </ElFormItem>
         <ElFormItem label="所属地块" required>
           <ElSelect v-model="formData.fieldId" placeholder="请选择地块" style="width: 100%" :disabled="editMode">
@@ -424,10 +480,10 @@ onUnmounted(() => {
           </ElSelect>
         </ElFormItem>
         <ElFormItem label="种植日期" required>
-          <ElDatePicker v-model="formData.plantedDate" type="date" placeholder="选择种植日期" style="width: 100%" />
+          <ElDatePicker v-model="formData.plantedDate" type="date" value-format="YYYY-MM-DD" placeholder="选择种植日期" style="width: 100%" />
         </ElFormItem>
         <ElFormItem label="预计收获日期" required>
-          <ElDatePicker v-model="formData.expectedHarvestDate" type="date" placeholder="选择预计收获日期" style="width: 100%" />
+          <ElDatePicker v-model="formData.expectedHarvestDate" type="date" value-format="YYYY-MM-DD" placeholder="选择预计收获日期" style="width: 100%" />
         </ElFormItem>
         <ElFormItem label="面积(亩)" required>
           <ElInput v-model.number="formData.area" placeholder="请输入面积" />
@@ -440,6 +496,42 @@ onUnmounted(() => {
         <div class="dialog-footer">
           <ElButton @click="dialogVisible = false">取消</ElButton>
           <ElButton type="primary" @click="handleSubmit">确定</ElButton>
+        </div>
+      </template>
+    </ElDialog>
+
+    <ElDialog
+      v-model="cropDialogVisible"
+      title="新建作物品种"
+      width="480px"
+      append-to-body
+      :close-on-click-modal="false"
+      class="custom-dialog"
+    >
+      <ElForm :model="newCropForm" label-width="90px" label-position="left" class="custom-form">
+        <ElFormItem label="作物名称" required>
+          <ElInput v-model="newCropForm.name" maxlength="100" placeholder="例如：水稻、玉米、番茄" />
+        </ElFormItem>
+        <ElFormItem label="作物类别">
+          <ElSelect v-model="newCropForm.category" clearable placeholder="请选择类别" style="width: 100%">
+            <ElOption label="粮食作物" value="粮食作物" />
+            <ElOption label="经济作物" value="经济作物" />
+            <ElOption label="蔬菜" value="蔬菜" />
+            <ElOption label="水果" value="水果" />
+            <ElOption label="其他" value="其他" />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem label="品种名称">
+          <ElInput v-model="newCropForm.variety" maxlength="100" placeholder="例如：滇粳优8号" />
+        </ElFormItem>
+        <ElFormItem label="生长周期">
+          <ElInput v-model.number="newCropForm.growthDays" type="number" min="1" max="1000" placeholder="天数，例如：120" />
+        </ElFormItem>
+      </ElForm>
+      <template #footer>
+        <div class="dialog-footer">
+          <ElButton @click="cropDialogVisible = false">取消</ElButton>
+          <ElButton type="primary" :loading="cropSubmitting" @click="handleCreateCrop">创建并选中</ElButton>
         </div>
       </template>
     </ElDialog>
@@ -640,6 +732,20 @@ onUnmounted(() => {
 .action-btns :deep(.el-button) {
   padding: 4px;
   font-size: 16px;
+}
+
+.crop-select-row {
+  display: flex;
+  width: 100%;
+  gap: var(--spacing-sm);
+}
+
+.crop-select-row .el-select {
+  flex: 1;
+}
+
+.crop-select-row .el-button {
+  flex-shrink: 0;
 }
 
 /* 对话框 */

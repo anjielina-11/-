@@ -1,5 +1,6 @@
 package com.yunong.module.task.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.yunong.common.BaseEntity;
@@ -28,4 +29,7 @@ public class FarmingTask extends BaseEntity {
     private LocalDate scheduledDate;
     private LocalDateTime completedAt;
     private String remark;
+
+    @TableField(exist = false)
+    private String fieldName;
 }
